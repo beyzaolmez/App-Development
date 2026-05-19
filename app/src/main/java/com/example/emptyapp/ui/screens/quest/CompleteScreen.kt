@@ -1,0 +1,52 @@
+package com.example.emptyapp.ui.screens.quest
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.example.emptyapp.ui.components.MomentumPrimaryButton
+import com.example.emptyapp.ui.components.MomentumSecondaryButton
+import com.example.emptyapp.ui.theme.MomentumTheme
+
+@Composable
+fun CompleteScreen(
+    onReflect: () -> Unit = {},
+    onHome: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Spacer(Modifier.weight(1f))
+        Text(
+            "Quest complete",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text("That counts.", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            "Your streak was updated softly. You can stop here or write a quick note.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.weight(1f))
+        MomentumPrimaryButton("Add a tiny reflection", onReflect, Modifier.fillMaxWidth())
+        MomentumSecondaryButton("Return home", onHome, Modifier.fillMaxWidth())
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
+@Composable
+private fun CompletePreview() {
+    MomentumTheme { CompleteScreen() }
+}
