@@ -104,7 +104,13 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                 )
             }
             composable(Routes.Reflect) { ReflectScreen() }
-            composable(Routes.Progress) { ProgressScreen() }
+            composable(Routes.Progress) {
+                ProgressScreen(
+                    completedQuestCount = questStateHolder.completedQuestCount(),
+                    totalQuestCount = questStateHolder.totalQuestCount(),
+                    currentStreak = questStateHolder.currentStreak()
+                )
+            }
             composable(Routes.Friends) { FriendsScreen() }
             composable(Routes.Profile) {
                 ProfileScreen(

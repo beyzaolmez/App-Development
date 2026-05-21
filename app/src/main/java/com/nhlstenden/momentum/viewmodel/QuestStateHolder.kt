@@ -10,13 +10,20 @@ import com.nhlstenden.momentum.data.repository.QuestRepository
 class QuestStateHolder(
     repository: QuestRepository
 ) {
+    private val dailyQuestLimit = 3
+    private val initialQuests = repository.getQuests()
+    private val dailyQuestIds = initialQuests
+        .take(dailyQuestLimit)
+        .map { it.id }
+        .toSet()
+
     var isLoading by mutableStateOf(true)
         private set
 
     var selectedStatus by mutableStateOf<QuestStatus?>(null)
         private set
 
-    private var quests by mutableStateOf(repository.getQuests())
+    private var quests by mutableStateOf(initialQuests)
 
     init {
         isLoading = false
@@ -27,7 +34,7 @@ class QuestStateHolder(
             quests.filter { it.status == status }
         } ?: quests
 
-        return filteredQuests.sortedWith(
+        return filteredQuests.dailyLimited().sortedWith(
             compareBy<Quest> { it.status.sortOrder }
                 .thenBy { it.category.label }
                 .thenBy { it.title }
@@ -37,6 +44,10 @@ class QuestStateHolder(
     fun activeQuestCount(): Int = quests.count { it.status == QuestStatus.Active }
 
     fun completedQuestCount(): Int = quests.count { it.status == QuestStatus.Completed }
+
+    fun totalQuestCount(): Int = quests.size
+
+    fun currentStreak(): Int = if (completedQuestCount() > 0) 1 else 0
 
     fun questById(id: String): Quest? = quests.firstOrNull { it.id == id }
 
@@ -59,6 +70,14 @@ class QuestStateHolder(
     private fun updateQuestStatus(id: String, status: QuestStatus) {
         quests = quests.map { quest ->
             if (quest.id == id) quest.copy(status = status) else quest
+        }
+    }
+
+    private fun List<Quest>.dailyLimited(): List<Quest> {
+        if (selectedStatus != null && selectedStatus != QuestStatus.Available) return this
+
+        return filter { quest ->
+            quest.status != QuestStatus.Available || quest.id in dailyQuestIds
         }
     }
 }

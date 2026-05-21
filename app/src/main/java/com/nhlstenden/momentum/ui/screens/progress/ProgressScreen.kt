@@ -25,7 +25,17 @@ import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
-fun ProgressScreen() {
+fun ProgressScreen(
+    completedQuestCount: Int = 0,
+    totalQuestCount: Int = 0,
+    currentStreak: Int = 0
+) {
+    val questProgress = if (totalQuestCount == 0) {
+        0f
+    } else {
+        completedQuestCount.toFloat() / totalQuestCount.toFloat()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,16 +51,21 @@ fun ProgressScreen() {
         Text("This week", style = MaterialTheme.typography.headlineLarge)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("4", "soft streak", Modifier.weight(1f))
-            StatCard("9", "quests tried", Modifier.weight(1f))
+            StatCard(currentStreak.toString(), "soft streak", Modifier.weight(1f))
+            StatCard(completedQuestCount.toString(), "quests done", Modifier.weight(1f))
         }
 
         MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Category balance", style = MaterialTheme.typography.titleLarge)
-                ProgressRow("Academic", 0.72f, MaterialTheme.colorScheme.primary)
-                ProgressRow("Personal", 0.48f, MaterialTheme.colorScheme.tertiary)
-                ProgressRow("Social", 0.32f, MaterialTheme.colorScheme.secondary)
+                Text("Quest progress", style = MaterialTheme.typography.titleLarge)
+                ProgressRow(
+                    label = "$completedQuestCount of $totalQuestCount quests completed",
+                    fraction = questProgress,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                ProgressRow("Academic", 0.50f, MaterialTheme.colorScheme.primary)
+                ProgressRow("Wellbeing", 0.25f, MaterialTheme.colorScheme.tertiary)
+                ProgressRow("Social", 0.25f, MaterialTheme.colorScheme.secondary)
             }
         }
     }
