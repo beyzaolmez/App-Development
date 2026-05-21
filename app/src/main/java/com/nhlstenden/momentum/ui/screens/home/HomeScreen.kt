@@ -78,6 +78,7 @@ fun HomeScreen(
                 xp = quest.xp,
                 difficulty = "${quest.difficulty.label} · ${quest.estimatedMinutes} min",
                 status = quest.status.label,
+                statusVariant = quest.status.chipVariant(),
                 actionLabel = if (quest.status == QuestStatus.Available) "Start quest" else null,
                 onActionClick = { onStartQuest(quest.id) },
                 onClick = { onQuestClick(quest.id) }
@@ -110,6 +111,13 @@ private fun QuestStatusFilters(
             )
         }
     }
+}
+
+private fun QuestStatus.chipVariant(): ChipVariant = when (this) {
+    QuestStatus.Available -> ChipVariant.Category
+    QuestStatus.Active -> ChipVariant.Status
+    QuestStatus.Completed -> ChipVariant.Reward
+    QuestStatus.Skipped -> ChipVariant.Neutral
 }
 
 @Composable

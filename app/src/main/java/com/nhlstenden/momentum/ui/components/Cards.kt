@@ -53,6 +53,7 @@ fun QuestCard(
     modifier: Modifier = Modifier,
     difficulty: String? = null,
     status: String? = null,
+    statusVariant: ChipVariant = ChipVariant.Status,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
@@ -82,7 +83,7 @@ fun QuestCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (status != null) {
-                    MomentumChip(status, variant = ChipVariant.Status)
+                    MomentumChip(status, variant = statusVariant)
                 }
                 MomentumChip("+$xp XP", variant = ChipVariant.Reward)
             }

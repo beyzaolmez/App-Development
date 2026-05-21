@@ -1,11 +1,14 @@
 package com.nhlstenden.momentum.ui.screens.quest
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,6 +18,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -65,7 +72,7 @@ fun QuestDetailScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     MomentumChip(quest.category.label, variant = ChipVariant.Category)
-                    MomentumChip(quest.status.label, variant = ChipVariant.Status)
+                    MomentumChip(quest.status.label, variant = quest.status.chipVariant())
                 }
                 Text(quest.title, style = MaterialTheme.typography.headlineMedium)
                 Text(
@@ -93,6 +100,8 @@ fun QuestDetailScreen(
             }
         }
 
+        QuestFeedbackCard()
+
         when (quest.status) {
             QuestStatus.Available -> {
                 MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
@@ -112,6 +121,49 @@ fun QuestDetailScreen(
             }
         }
     }
+}
+
+@Composable
+private fun QuestFeedbackCard() {
+    var selectedFeedback by remember { mutableStateOf<String?>(null) }
+    val feedbackOptions = listOf("Like quest", "Dislike quest", "More like this", "Not for me")
+
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Quest feedback", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Optional",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            Text(
+                "Helps tune future quest categories.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(feedbackOptions) { option ->
+                    MomentumChip(
+                        text = option,
+                        variant = if (selectedFeedback == option) ChipVariant.Skills else ChipVariant.Neutral,
+                        modifier = Modifier.clickable { selectedFeedback = option }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun QuestStatus.chipVariant(): ChipVariant = when (this) {
+    QuestStatus.Available -> ChipVariant.Category
+    QuestStatus.Active -> ChipVariant.Status
+    QuestStatus.Completed -> ChipVariant.Reward
+    QuestStatus.Skipped -> ChipVariant.Neutral
 }
 
 @Composable
