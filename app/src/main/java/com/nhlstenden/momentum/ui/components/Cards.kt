@@ -52,6 +52,9 @@ fun QuestCard(
     xp: Int,
     modifier: Modifier = Modifier,
     difficulty: String? = null,
+    status: String? = null,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     MomentumCard(modifier = modifier, onClick = onClick) { inner ->
@@ -65,11 +68,7 @@ fun QuestCard(
             ) {
                 MomentumChip(category, variant = ChipVariant.Category)
                 if (difficulty != null) {
-                    Text(
-                        difficulty,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                    MomentumChip(difficulty, variant = ChipVariant.Neutral)
                 }
             }
             Text(title, style = MaterialTheme.typography.titleLarge)
@@ -79,10 +78,20 @@ fun QuestCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                if (status != null) {
+                    MomentumChip(status, variant = ChipVariant.Status)
+                }
                 MomentumChip("+$xp XP", variant = ChipVariant.Reward)
+            }
+            if (actionLabel != null && onActionClick != null) {
+                MomentumPrimaryButton(
+                    text = actionLabel,
+                    onClick = onActionClick,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -103,7 +112,9 @@ private fun CardGalleryPreview() {
                 description = "Finish the assigned reading for History 101 before tomorrow's seminar.",
                 category = "Academic",
                 xp = 150,
-                difficulty = "Medium"
+                difficulty = "Medium",
+                status = "Available",
+                actionLabel = "Start quest"
             )
             QuestCard(
                 title = "Master Python Basics",

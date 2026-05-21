@@ -19,7 +19,7 @@ import com.nhlstenden.momentum.ui.theme.MomentumTheme
 import com.nhlstenden.momentum.ui.theme.PillShape
 
 // Brandbook §06: active = primary border + 10% primary fill. Uppercase, letter-spaced.
-enum class ChipVariant { Category, Skills, Reward, Neutral }
+enum class ChipVariant { Category, Skills, Reward, Status, Neutral }
 
 @Composable
 fun MomentumChip(
@@ -44,6 +44,11 @@ fun MomentumChip(
         ChipVariant.Reward -> {
             container = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
             content = MaterialTheme.colorScheme.tertiary
+            border = Color.Transparent
+        }
+        ChipVariant.Status -> {
+            container = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
+            content = MaterialTheme.colorScheme.secondary
             border = Color.Transparent
         }
         ChipVariant.Neutral -> {

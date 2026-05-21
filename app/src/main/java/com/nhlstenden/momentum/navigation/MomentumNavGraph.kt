@@ -5,6 +5,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -13,6 +14,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.ui.components.MomentumBottomNav
 import com.nhlstenden.momentum.ui.screens.auth.ForgotPasswordScreen
 import com.nhlstenden.momentum.ui.screens.auth.SignInScreen
@@ -25,6 +27,7 @@ import com.nhlstenden.momentum.ui.screens.progress.ProgressScreen
 import com.nhlstenden.momentum.ui.screens.quest.CompleteScreen
 import com.nhlstenden.momentum.ui.screens.quest.QuestDetailScreen
 import com.nhlstenden.momentum.ui.screens.reflect.ReflectScreen
+import com.nhlstenden.momentum.viewmodel.QuestStateHolder
 
 // Routes where the bottom nav should be visible.
 private val mainRoutes = setOf(
@@ -36,6 +39,9 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
+    val questStateHolder = remember {
+        QuestStateHolder(PredefinedQuestRepository())
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -87,6 +93,13 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             // ---------- Main app tabs ----------
             composable(Routes.Home) {
                 HomeScreen(
+                    quests = questStateHolder.visibleQuests(),
+                    isLoading = questStateHolder.isLoading,
+                    selectedStatus = questStateHolder.selectedStatus,
+                    activeQuestCount = questStateHolder.activeQuestCount(),
+                    completedQuestCount = questStateHolder.completedQuestCount(),
+                    onStatusSelected = questStateHolder::selectStatus,
+                    onStartQuest = questStateHolder::startQuest,
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
             }
@@ -110,11 +123,18 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             ) { entry ->
                 val id = entry.arguments?.getString("id") ?: ""
                 QuestDetailScreen(
-                    questId = id,
+                    quest = questStateHolder.questById(id),
                     onBack = { navController.popBackStack() },
-                    onComplete = { navController.navigate(Routes.complete(id)) },
+                    onStart = { questStateHolder.startQuest(id) },
+                    onComplete = {
+                        questStateHolder.completeQuest(id)
+                        navController.navigate(Routes.complete(id))
+                    },
                     onSaveForLater = { navController.popBackStack() },
-                    onSkip = { navController.popBackStack() }
+                    onSkip = {
+                        questStateHolder.skipQuest(id)
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(
