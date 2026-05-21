@@ -3,14 +3,14 @@ package com.nhlstenden.momentum.viewmodel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestStatus
-import com.nhlstenden.momentum.data.repository.QuestRepository
+import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 
-class QuestStateHolder(
-    repository: QuestRepository
-) {
+class QuestViewModel : ViewModel() {
     private val dailyQuestLimit = 3
+    private val repository = PredefinedQuestRepository()
     private val initialQuests = repository.getQuests()
     private val dailyQuestIds = initialQuests
         .take(dailyQuestLimit)

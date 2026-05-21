@@ -18,12 +18,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestStatus
-import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.QuestCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
-import com.nhlstenden.momentum.viewmodel.QuestStateHolder
+import com.nhlstenden.momentum.viewmodel.QuestViewModel
 
 @Composable
 fun HomeScreen(
@@ -140,16 +139,16 @@ private fun HomeHeader() {
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun HomeScreenPreview() {
-    val stateHolder = QuestStateHolder(PredefinedQuestRepository())
+    val questViewModel = QuestViewModel()
     MomentumTheme {
         HomeScreen(
-            quests = stateHolder.visibleQuests(),
-            isLoading = stateHolder.isLoading,
-            selectedStatus = stateHolder.selectedStatus,
-            activeQuestCount = stateHolder.activeQuestCount(),
-            completedQuestCount = stateHolder.completedQuestCount(),
-            onStatusSelected = stateHolder::selectStatus,
-            onStartQuest = stateHolder::startQuest
+            quests = questViewModel.visibleQuests(),
+            isLoading = questViewModel.isLoading,
+            selectedStatus = questViewModel.selectedStatus,
+            activeQuestCount = questViewModel.activeQuestCount(),
+            completedQuestCount = questViewModel.completedQuestCount(),
+            onStatusSelected = questViewModel::selectStatus,
+            onStartQuest = questViewModel::startQuest
         )
     }
 }
