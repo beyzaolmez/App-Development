@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.model.Quest
+import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.ui.components.ChipVariant
@@ -125,8 +126,8 @@ fun QuestDetailScreen(
 
 @Composable
 private fun QuestFeedbackCard() {
-    var selectedFeedback by remember { mutableStateOf<String?>(null) }
-    val feedbackOptions = listOf("Like quest", "Dislike quest", "More like this", "Not for me")
+    var selectedFeedback by remember { mutableStateOf<QuestFeedbackType?>(null) }
+    val feedbackOptions = QuestFeedbackType.entries
 
     MomentumCard {
         Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -149,7 +150,7 @@ private fun QuestFeedbackCard() {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(feedbackOptions) { option ->
                     MomentumChip(
-                        text = option,
+                        text = option.label,
                         variant = if (selectedFeedback == option) ChipVariant.Skills else ChipVariant.Neutral,
                         modifier = Modifier.clickable { selectedFeedback = option }
                     )

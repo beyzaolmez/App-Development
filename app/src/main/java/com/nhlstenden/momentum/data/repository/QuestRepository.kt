@@ -3,13 +3,18 @@ package com.nhlstenden.momentum.data.repository
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestDifficulty
+import com.nhlstenden.momentum.data.model.QuestState
 
 interface QuestRepository {
     fun getQuests(): List<Quest>
     fun getQuestById(id: String): Quest?
+    suspend fun getQuestStates(uid: String): List<QuestState>
+    suspend fun saveQuestState(uid: String, questState: QuestState)
 }
 
 class PredefinedQuestRepository : QuestRepository {
+    private val questStatesByUser = mutableMapOf<String, List<QuestState>>()
+
     private val quests = listOf(
         Quest(
             id = "chapter-focus",
@@ -72,4 +77,14 @@ class PredefinedQuestRepository : QuestRepository {
     override fun getQuests(): List<Quest> = quests
 
     override fun getQuestById(id: String): Quest? = quests.firstOrNull { it.id == id }
+
+    override suspend fun getQuestStates(uid: String): List<QuestState> =
+        questStatesByUser[uid].orEmpty()
+
+    override suspend fun saveQuestState(uid: String, questState: QuestState) {
+        val existingStates = questStatesByUser[uid].orEmpty()
+        questStatesByUser[uid] = existingStates
+            .filterNot { it.questStateId == questState.questStateId }
+            .plus(questState)
+    }
 }
