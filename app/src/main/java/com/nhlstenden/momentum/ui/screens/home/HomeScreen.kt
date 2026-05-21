@@ -31,8 +31,10 @@ fun HomeScreen(
     selectedStatus: QuestStatus?,
     activeQuestCount: Int,
     completedQuestCount: Int,
+    dailyQuestLimit: Int,
     onStatusSelected: (QuestStatus?) -> Unit,
     onStartQuest: (String) -> Unit,
+    onSkipQuest: (String) -> Unit,
     onQuestClick: (String) -> Unit = {}
 ) {
     LazyColumn(
@@ -49,7 +51,7 @@ fun HomeScreen(
         }
         item {
             Text(
-                "$activeQuestCount active · $completedQuestCount completed",
+                "$dailyQuestLimit quests today · $activeQuestCount active · $completedQuestCount completed",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -80,6 +82,8 @@ fun HomeScreen(
                 statusVariant = quest.status.chipVariant(),
                 actionLabel = if (quest.status == QuestStatus.Available) "Start quest" else null,
                 onActionClick = { onStartQuest(quest.id) },
+                secondaryActionLabel = if (quest.status == QuestStatus.Available) "Not today" else null,
+                onSecondaryActionClick = { onSkipQuest(quest.id) },
                 onClick = { onQuestClick(quest.id) }
             )
         }
@@ -147,8 +151,10 @@ private fun HomeScreenPreview() {
             selectedStatus = questViewModel.selectedStatus,
             activeQuestCount = questViewModel.activeQuestCount(),
             completedQuestCount = questViewModel.completedQuestCount(),
+            dailyQuestLimit = questViewModel.dailyQuestLimit(),
             onStatusSelected = questViewModel::selectStatus,
-            onStartQuest = questViewModel::startQuest
+            onStartQuest = questViewModel::startQuest,
+            onSkipQuest = questViewModel::skipQuest
         )
     }
 }

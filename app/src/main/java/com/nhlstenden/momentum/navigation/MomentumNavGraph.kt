@@ -95,8 +95,10 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     selectedStatus = questViewModel.selectedStatus,
                     activeQuestCount = questViewModel.activeQuestCount(),
                     completedQuestCount = questViewModel.completedQuestCount(),
+                    dailyQuestLimit = questViewModel.dailyQuestLimit(),
                     onStatusSelected = questViewModel::selectStatus,
                     onStartQuest = questViewModel::startQuest,
+                    onSkipQuest = questViewModel::skipQuest,
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
             }

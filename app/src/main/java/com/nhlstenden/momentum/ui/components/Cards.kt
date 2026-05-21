@@ -56,6 +56,8 @@ fun QuestCard(
     statusVariant: ChipVariant = ChipVariant.Status,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
+    secondaryActionLabel: String? = null,
+    onSecondaryActionClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     MomentumCard(modifier = modifier, onClick = onClick) { inner ->
@@ -91,6 +93,13 @@ fun QuestCard(
                 MomentumPrimaryButton(
                     text = actionLabel,
                     onClick = onActionClick,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            if (secondaryActionLabel != null && onSecondaryActionClick != null) {
+                MomentumQuietButton(
+                    text = secondaryActionLabel,
+                    onClick = onSecondaryActionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

@@ -47,6 +47,8 @@ class QuestViewModel : ViewModel() {
 
     fun totalQuestCount(): Int = quests.size
 
+    fun dailyQuestLimit(): Int = dailyQuestLimit
+
     fun currentStreak(): Int = if (completedQuestCount() > 0) 1 else 0
 
     fun questById(id: String): Quest? = quests.firstOrNull { it.id == id }
