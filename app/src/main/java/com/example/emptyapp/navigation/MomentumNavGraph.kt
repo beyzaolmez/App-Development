@@ -18,6 +18,7 @@ import com.example.emptyapp.ui.screens.auth.ForgotPasswordScreen
 import com.example.emptyapp.ui.screens.auth.SignInScreen
 import com.example.emptyapp.ui.screens.auth.SignUpScreen
 import com.example.emptyapp.ui.screens.auth.WelcomeScreen
+import com.example.emptyapp.ui.screens.onboarding.OnboardingScreen
 import com.example.emptyapp.ui.screens.friends.FriendsScreen
 import com.example.emptyapp.ui.screens.home.HomeScreen
 import com.example.emptyapp.ui.screens.profile.ProfileScreen
@@ -45,14 +46,28 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.Welcome,
+            startDestination = Routes.Onboarding,
             modifier = Modifier.padding(padding)
         ) {
+            // ---------- First-run intro ----------
+            composable(Routes.Onboarding) {
+                val toWelcome: () -> Unit = {
+                    navController.navigate(Routes.Welcome) {
+                        popUpTo(Routes.Onboarding) { inclusive = true }
+                    }
+                }
+                OnboardingScreen(
+                    onFinish = toWelcome,
+                    onSkip = toWelcome
+                )
+            }
+
             // ---------- Auth flow ----------
             composable(Routes.Welcome) {
                 WelcomeScreen(
                     onSignIn = { navController.navigate(Routes.SignIn) },
-                    onSignUp = { navController.navigate(Routes.SignUp) }
+                    onSignUp = { navController.navigate(Routes.SignUp) },
+                    onPreviewOnboarding = { navController.navigate(Routes.Onboarding) }
                 )
             }
             composable(Routes.SignIn) {
