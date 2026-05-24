@@ -19,17 +19,20 @@ import com.example.emptyapp.ui.components.ChipVariant
 import com.example.emptyapp.ui.components.QuestCard
 import com.example.emptyapp.ui.theme.MomentumTheme
 
+enum class QuestStatus { Active, Skipped, Completed, SavedForLater }
+
 data class Quest(
     val id: String,
     val title: String,
     val description: String,
     val category: String,
     val xp: Int,
-    val difficulty: String
+    val difficulty: String,
+    val status: QuestStatus = QuestStatus.Active
 )
 
 // Brandbook + minimal-UI acceptance criteria: max 1–3 active quests on Home.
-private val sampleQuests = listOf(
+val sampleQuests = listOf(
     Quest("q1", "Read Chapter 4", "Finish the History 101 reading before tomorrow's seminar.", "Academic", 150, "Medium"),
     Quest("q2", "15-minute mindful reset", "A short grounding quest between classes.", "Personal", 80, "Easy"),
     Quest("q3", "Message one friend", "Send one low-pressure check-in to someone you trust.", "Social", 60, "Easy")
@@ -40,6 +43,7 @@ fun HomeScreen(
     quests: List<Quest> = sampleQuests,
     onQuestClick: (String) -> Unit = {}
 ) {
+    val activeQuests = quests.filter { it.status == QuestStatus.Active }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
@@ -52,7 +56,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
         }
-        items(quests, key = { it.id }) { quest ->
+        items(activeQuests, key = { it.id }) { quest ->
             QuestCard(
                 title = quest.title,
                 description = quest.description,
