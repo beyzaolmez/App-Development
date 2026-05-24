@@ -5,6 +5,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -21,6 +23,9 @@ import com.example.emptyapp.ui.screens.auth.WelcomeScreen
 import com.example.emptyapp.ui.screens.onboarding.OnboardingScreen
 import com.example.emptyapp.ui.screens.friends.FriendsScreen
 import com.example.emptyapp.ui.screens.home.HomeScreen
+import com.example.emptyapp.ui.screens.home.Quest
+import com.example.emptyapp.ui.screens.home.QuestStatus
+import com.example.emptyapp.ui.screens.home.sampleQuests
 import com.example.emptyapp.ui.screens.profile.ProfileScreen
 import com.example.emptyapp.ui.screens.progress.ProgressScreen
 import com.example.emptyapp.ui.screens.quest.CompleteScreen
@@ -37,6 +42,13 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
+
+    // In-memory quest store. Replace with a ViewModel/repository when persistence lands.
+    val quests = remember { mutableStateListOf<Quest>().apply { addAll(sampleQuests) } }
+    val updateStatus: (String, QuestStatus) -> Unit = { id, status ->
+        val i = quests.indexOfFirst { it.id == id }
+        if (i >= 0) quests[i] = quests[i].copy(status = status)
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -102,6 +114,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             // ---------- Main app tabs ----------
             composable(Routes.Home) {
                 HomeScreen(
+                    quests = quests,
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
             }
@@ -128,8 +141,14 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     questId = id,
                     onBack = { navController.popBackStack() },
                     onComplete = { navController.navigate(Routes.complete(id)) },
-                    onSaveForLater = { navController.popBackStack() },
-                    onSkip = { navController.popBackStack() }
+                    onSaveForLater = {
+                        updateStatus(id, QuestStatus.SavedForLater)
+                        navController.popBackStack()
+                    },
+                    onSkip = {
+                        updateStatus(id, QuestStatus.Skipped)
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(
