@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.emptyapp.notification.NotificationHelper
 import com.example.emptyapp.ui.components.MomentumChip
 import com.example.emptyapp.ui.components.ChipVariant
 import com.example.emptyapp.ui.components.QuestCard
@@ -40,6 +43,7 @@ fun HomeScreen(
     quests: List<Quest> = sampleQuests,
     onQuestClick: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
@@ -61,6 +65,19 @@ fun HomeScreen(
                 difficulty = quest.difficulty,
                 onClick = { onQuestClick(quest.id) }
             )
+        }
+        item {
+            Button(
+                onClick = {
+                    NotificationHelper.showQuestNotification(
+                        context = context,
+                        questTitle = quests.firstOrNull()?.title ?: "Your quest awaits"
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Test notification")
+            }
         }
     }
 }
