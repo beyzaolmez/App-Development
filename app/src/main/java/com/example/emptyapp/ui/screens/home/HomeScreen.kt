@@ -13,9 +13,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.emptyapp.data.InterestsStore
 import com.example.emptyapp.notification.NotificationHelper
 import com.example.emptyapp.ui.components.MomentumChip
 import com.example.emptyapp.ui.components.ChipVariant
@@ -44,6 +46,11 @@ fun HomeScreen(
     onQuestClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val savedInterests = remember { InterestsStore.load(context) }
+    // Show all quests when no interests have been saved yet (e.g. first launch / sign-in flow)
+    val displayedQuests = if (savedInterests.isEmpty()) quests
+                          else quests.filter { it.category in savedInterests }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
@@ -56,7 +63,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
         }
-        items(quests, key = { it.id }) { quest ->
+        items(displayedQuests, key = { it.id }) { quest ->
             QuestCard(
                 title = quest.title,
                 description = quest.description,

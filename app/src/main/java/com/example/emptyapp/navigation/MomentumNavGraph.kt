@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import com.example.emptyapp.ui.components.MomentumBottomNav
 import com.example.emptyapp.ui.screens.auth.ForgotPasswordScreen
+import com.example.emptyapp.ui.screens.onboarding.InterestSelectionScreen
 import com.example.emptyapp.ui.screens.auth.SignInScreen
 import com.example.emptyapp.ui.screens.auth.SignUpScreen
 import com.example.emptyapp.ui.screens.auth.WelcomeScreen
@@ -69,12 +70,22 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             composable(Routes.SignUp) {
                 SignUpScreen(
                     onCreated = {
-                        navController.navigate(Routes.Home) {
+                        // New users pick their interests before landing on Home
+                        navController.navigate(Routes.Interests) {
                             popUpTo(Routes.Welcome) { inclusive = true }
                         }
                     },
                     onHaveAccount = { navController.navigate(Routes.SignIn) },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.Interests) {
+                InterestSelectionScreen(
+                    onContinue = {
+                        navController.navigate(Routes.Home) {
+                            popUpTo(Routes.Interests) { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(Routes.Forgot) {
