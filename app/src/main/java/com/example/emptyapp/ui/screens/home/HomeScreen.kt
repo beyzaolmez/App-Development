@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.emptyapp.data.InterestsStore
+import com.example.emptyapp.data.StreakStore
 import com.example.emptyapp.notification.NotificationHelper
 import com.example.emptyapp.ui.components.MomentumChip
 import com.example.emptyapp.ui.components.ChipVariant
@@ -47,6 +48,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val savedInterests = remember { InterestsStore.load(context) }
+    val streak = remember { StreakStore.getStreak(context) }
     // Show all quests when no interests have been saved yet (e.g. first launch / sign-in flow)
     val displayedQuests = if (savedInterests.isEmpty()) quests
                           else quests.filter { it.category in savedInterests }
@@ -56,7 +58,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { HomeHeader() }
+        item { HomeHeader(streak = streak) }
         item {
             Text(
                 "Your side quests",
@@ -90,7 +92,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader() {
+private fun HomeHeader(streak: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             "Thursday",
@@ -98,9 +100,11 @@ private fun HomeHeader() {
             color = MaterialTheme.colorScheme.primary
         )
         Text("Hi Miriam", style = MaterialTheme.typography.headlineLarge)
+        val streakLabel = if (streak > 0) "$streak day streak" else "Start your streak"
+        val streakVariant = if (streak > 0) ChipVariant.Skills else ChipVariant.Neutral
         MomentumChip(
-            text = "Gentle day",
-            variant = ChipVariant.Skills,
+            text = streakLabel,
+            variant = streakVariant,
             modifier = Modifier.padding(top = 8.dp)
         )
     }

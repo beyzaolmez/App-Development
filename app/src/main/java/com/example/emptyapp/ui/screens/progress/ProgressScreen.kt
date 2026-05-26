@@ -18,14 +18,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.emptyapp.data.StreakStore
 import com.example.emptyapp.ui.components.MomentumCard
 import com.example.emptyapp.ui.theme.MomentumTheme
 
 @Composable
 fun ProgressScreen() {
+    val context = LocalContext.current
+    val streak = remember { StreakStore.getStreak(context) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,7 +47,7 @@ fun ProgressScreen() {
         Text("This week", style = MaterialTheme.typography.headlineLarge)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("4", "soft streak", Modifier.weight(1f))
+            StatCard(streak.toString(), "soft streak", Modifier.weight(1f))
             StatCard("9", "quests tried", Modifier.weight(1f))
         }
 
