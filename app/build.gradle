@@ -3,6 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// Redirect build output outside OneDrive to prevent file-locking errors during compilation.
+buildDir = new File("C:/AndroidBuildCache/app")
+
 android {
     namespace 'com.example.emptyapp'
     compileSdk 34
