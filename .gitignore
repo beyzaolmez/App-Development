@@ -72,3 +72,7 @@ fastlane/test_output/
 
 # Windows system files
 Desktop.ini
+
+# Ignore brandbook and wireframe directories
+brandbook/
+wireframe/
