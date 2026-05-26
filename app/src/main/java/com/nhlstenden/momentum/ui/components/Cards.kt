@@ -42,16 +42,42 @@ fun MomentumCard(
     }
 }
 
-// QuestCard composes MomentumCard with the standard layout from the wireframe:
-// category chip + optional difficulty, title, description, XP reward chip.
+@Composable
+fun MomentumStatusCard(
+    title: String,
+    message: String,
+    modifier: Modifier = Modifier,
+    variant: ChipVariant = ChipVariant.Neutral
+) {
+    MomentumCard(modifier = modifier) { inner ->
+        Column(
+            modifier = inner,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            MomentumChip(title, variant = variant)
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// QuestCard composes MomentumCard with the standard layout from the wireframe.
 @Composable
 fun QuestCard(
     title: String,
     description: String,
     category: String,
-    xp: Int,
     modifier: Modifier = Modifier,
     difficulty: String? = null,
+    status: String? = null,
+    statusVariant: ChipVariant = ChipVariant.Status,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null,
+    secondaryActionLabel: String? = null,
+    onSecondaryActionClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     MomentumCard(modifier = modifier, onClick = onClick) { inner ->
@@ -65,11 +91,7 @@ fun QuestCard(
             ) {
                 MomentumChip(category, variant = ChipVariant.Category)
                 if (difficulty != null) {
-                    Text(
-                        difficulty,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                    MomentumChip(difficulty, variant = ChipVariant.Neutral)
                 }
             }
             Text(title, style = MaterialTheme.typography.titleLarge)
@@ -79,10 +101,26 @@ fun QuestCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                MomentumChip("+$xp XP", variant = ChipVariant.Reward)
+                if (status != null) {
+                    MomentumChip(status, variant = statusVariant)
+                }
+            }
+            if (actionLabel != null && onActionClick != null) {
+                MomentumPrimaryButton(
+                    text = actionLabel,
+                    onClick = onActionClick,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            if (secondaryActionLabel != null && onSecondaryActionClick != null) {
+                MomentumQuietButton(
+                    text = secondaryActionLabel,
+                    onClick = onSecondaryActionClick,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -102,14 +140,14 @@ private fun CardGalleryPreview() {
                 title = "Read Chapter 4",
                 description = "Finish the assigned reading for History 101 before tomorrow's seminar.",
                 category = "Academic",
-                xp = 150,
-                difficulty = "Medium"
+                difficulty = "Medium",
+                status = "Available",
+                actionLabel = "Start quest"
             )
             QuestCard(
                 title = "Master Python Basics",
                 description = "Complete the first three modules of the introductory Python course.",
                 category = "Skills",
-                xp = 300,
                 difficulty = "Hard"
             )
             MomentumCard {

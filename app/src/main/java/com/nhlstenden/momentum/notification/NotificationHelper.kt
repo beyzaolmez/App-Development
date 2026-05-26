@@ -1,18 +1,21 @@
 package com.nhlstenden.momentum.notification
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.nhlstenden.momentum.MainActivity
 
 object NotificationHelper {
-
     private const val CHANNEL_ID = "quest_notifications"
-    private const val CHANNEL_NAME = "Quest Reminders"
+    private const val CHANNEL_NAME = "Quest reminders"
     private const val NOTIFICATION_ID = 1001
 
     fun createNotificationChannel(context: Context) {
@@ -22,15 +25,16 @@ object NotificationHelper {
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Notifications for your daily side quests"
+                description = "Notifications for daily side quests"
             }
-            val manager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
     fun showQuestNotification(context: Context, questTitle: String) {
+        if (!hasNotificationPermission(context)) return
+
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -50,8 +54,15 @@ object NotificationHelper {
             .setContentIntent(pendingIntent)
             .build()
 
-        val manager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, notification)
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun hasNotificationPermission(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }
