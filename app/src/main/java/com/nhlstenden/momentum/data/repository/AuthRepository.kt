@@ -9,4 +9,8 @@ class AuthRepository(
     suspend fun register(email: String, password: String) {
         firebaseAuth.createUserWithEmailAndPassword(email, password).await()
     }
+
+    suspend fun login(email: String, password: String) {
+        firebaseAuth.signInWithEmailAndPassword(email, password).await()
+    }
 }

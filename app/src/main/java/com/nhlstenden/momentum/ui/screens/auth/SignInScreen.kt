@@ -8,27 +8,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumTextField
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.viewmodel.AuthViewModel
 
 @Composable
 fun SignInScreen(
     onSignedIn: () -> Unit = {},
     onForgot: () -> Unit = {},
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    authViewModel: AuthViewModel = viewModel()
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val state by authViewModel.loginState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -38,11 +38,38 @@ fun SignInScreen(
     ) {
         AuthHeader(title = "Welcome back", subtitle = "Continue your quests at your own pace.", onBack = onBack)
 
-        MomentumTextField(email, { email = it }, "Student email", keyboardType = KeyboardType.Email)
-        MomentumTextField(password, { password = it }, "Password", isPassword = true)
+        MomentumTextField(
+            value = state.email,
+            onValueChange = authViewModel::onLoginEmailChanged,
+            placeholder = "Student email",
+            keyboardType = KeyboardType.Email,
+            errorText = state.emailError
+        )
+        MomentumTextField(
+            value = state.password,
+            onValueChange = authViewModel::onLoginPasswordChanged,
+            placeholder = "Password",
+            isPassword = true,
+            errorText = state.passwordError
+        )
 
-        MomentumPrimaryButton("Sign in", onSignedIn, Modifier.fillMaxWidth())
-        MomentumQuietButton("Forgot password", onForgot, Modifier.fillMaxWidth())
+        val loginError = state.loginError
+        if (loginError != null) {
+            Text(loginError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+
+        MomentumPrimaryButton(
+            text = if (state.isLoggingIn) "Signing in…" else "Sign in",
+            onClick = { authViewModel.login(onSignedIn) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isLoggingIn
+        )
+        MomentumQuietButton(
+            text = "Forgot password",
+            onClick = onForgot,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isLoggingIn
+        )
     }
 }
 
