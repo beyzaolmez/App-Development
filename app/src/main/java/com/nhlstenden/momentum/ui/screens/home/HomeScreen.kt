@@ -46,6 +46,7 @@ val sampleQuests = listOf(
 
 @Composable
 fun HomeScreen(
+    displayName: String = "",
     quests: List<Quest> = sampleQuests,
     onQuestClick: (String) -> Unit = {}
 ) {
@@ -61,7 +62,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { HomeHeader(streak = streak) }
+        item { HomeHeader(streak = streak, displayName = displayName) }
         item {
             Text(
                 "Your side quests",
@@ -95,14 +96,15 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(streak: Int = 0) {
+private fun HomeHeader(streak: Int = 0, displayName: String = "") {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             "Thursday",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
-        Text("Hi Miriam", style = MaterialTheme.typography.headlineLarge)
+        val greeting = if (displayName.isNotBlank()) "Hi ${displayName.substringBefore(" ")}" else "Hi there"
+        Text(greeting, style = MaterialTheme.typography.headlineLarge)
         val streakLabel = if (streak > 0) "$streak day streak" else "Start your streak"
         val streakVariant = if (streak > 0) ChipVariant.Skills else ChipVariant.Neutral
         MomentumChip(

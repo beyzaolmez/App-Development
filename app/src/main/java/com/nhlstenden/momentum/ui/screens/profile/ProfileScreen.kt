@@ -23,8 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nhlstenden.momentum.data.InterestsStore
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
@@ -33,7 +35,14 @@ import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
-fun ProfileScreen(onSignOut: () -> Unit = {}) {
+fun ProfileScreen(
+    displayName: String = "",
+    email: String = "",
+    onSignOut: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val interests = remember { InterestsStore.load(context).sorted() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -55,8 +64,13 @@ fun ProfileScreen(onSignOut: () -> Unit = {}) {
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Miriam", style = MaterialTheme.typography.titleLarge)
-                    Text("University student", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        displayName.ifBlank { email.substringBefore("@") },
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    if (email.isNotBlank()) {
+                        Text(email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 MomentumSecondaryButton("Edit", {})
             }
@@ -70,13 +84,15 @@ fun ProfileScreen(onSignOut: () -> Unit = {}) {
             }
         }
 
-        MomentumCard {
-            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Interests", style = MaterialTheme.typography.titleLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MomentumChip("Mind reset", variant = ChipVariant.Category)
-                    MomentumChip("Social ease", variant = ChipVariant.Skills)
-                    MomentumChip("Reflection", variant = ChipVariant.Reward)
+        if (interests.isNotEmpty()) {
+            MomentumCard {
+                Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Interests", style = MaterialTheme.typography.titleLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        interests.forEach { interest ->
+                            MomentumChip(interest, variant = ChipVariant.Category)
+                        }
+                    }
                 }
             }
         }

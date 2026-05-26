@@ -88,7 +88,7 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isRegistering = true, registrationError = null) }
             runCatching {
-                authRepository.register(currentState.email.trim(), currentState.password)
+                authRepository.register(currentState.name.trim(), currentState.email.trim(), currentState.password)
             }.onSuccess {
                 _uiState.update { it.copy(isRegistering = false) }
                 onSuccess()

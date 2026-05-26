@@ -15,6 +15,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import com.nhlstenden.momentum.data.repository.AuthRepository
 import com.nhlstenden.momentum.ui.components.MomentumBottomNav
 import com.nhlstenden.momentum.ui.screens.auth.ForgotPasswordScreen
 import com.nhlstenden.momentum.ui.screens.auth.SignInScreen
@@ -44,6 +45,12 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
 
+    val authRepository = remember { AuthRepository() }
+    val currentUser = remember { authRepository.getCurrentUser() }
+    val displayName = currentUser?.displayName.orEmpty()
+    val email = currentUser?.email.orEmpty()
+    val startDestination = if (currentUser != null) Routes.Home else Routes.Onboarding
+
     // In-memory quest store. Replace with a ViewModel/repository when persistence lands.
     val quests = remember { mutableStateListOf<Quest>().apply { addAll(sampleQuests) } }
     val updateStatus: (String, QuestStatus) -> Unit = { id, status ->
@@ -59,7 +66,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.Onboarding,
+            startDestination = startDestination,
             modifier = Modifier.padding(padding)
         ) {
             // ---------- First-run intro ----------
@@ -125,6 +132,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             // ---------- Main app tabs ----------
             composable(Routes.Home) {
                 HomeScreen(
+                    displayName = displayName,
                     quests = quests,
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
@@ -134,7 +142,10 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             composable(Routes.Friends) { FriendsScreen() }
             composable(Routes.Profile) {
                 ProfileScreen(
+                    displayName = displayName,
+                    email = email,
                     onSignOut = {
+                        authRepository.signOut()
                         navController.navigate(Routes.Welcome) {
                             popUpTo(0) { inclusive = true }
                         }
