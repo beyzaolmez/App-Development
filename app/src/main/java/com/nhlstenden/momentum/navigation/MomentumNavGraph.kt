@@ -5,6 +5,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -20,6 +22,10 @@ import com.nhlstenden.momentum.ui.screens.auth.SignUpScreen
 import com.nhlstenden.momentum.ui.screens.auth.WelcomeScreen
 import com.nhlstenden.momentum.ui.screens.friends.FriendsScreen
 import com.nhlstenden.momentum.ui.screens.home.HomeScreen
+import com.nhlstenden.momentum.ui.screens.home.Quest
+import com.nhlstenden.momentum.ui.screens.home.QuestStatus
+import com.nhlstenden.momentum.ui.screens.home.sampleQuests
+import com.nhlstenden.momentum.ui.screens.onboarding.OnboardingScreen
 import com.nhlstenden.momentum.ui.screens.profile.ProfileScreen
 import com.nhlstenden.momentum.ui.screens.progress.ProgressScreen
 import com.nhlstenden.momentum.ui.screens.quest.CompleteScreen
@@ -37,6 +43,13 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
 
+    // In-memory quest store. Replace with a ViewModel/repository when persistence lands.
+    val quests = remember { mutableStateListOf<Quest>().apply { addAll(sampleQuests) } }
+    val updateStatus: (String, QuestStatus) -> Unit = { id, status ->
+        val i = quests.indexOfFirst { it.id == id }
+        if (i >= 0) quests[i] = quests[i].copy(status = status)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -45,14 +58,28 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.Welcome,
+            startDestination = Routes.Onboarding,
             modifier = Modifier.padding(padding)
         ) {
+            // ---------- First-run intro ----------
+            composable(Routes.Onboarding) {
+                val toWelcome: () -> Unit = {
+                    navController.navigate(Routes.Welcome) {
+                        popUpTo(Routes.Onboarding) { inclusive = true }
+                    }
+                }
+                OnboardingScreen(
+                    onFinish = toWelcome,
+                    onSkip = toWelcome
+                )
+            }
+
             // ---------- Auth flow ----------
             composable(Routes.Welcome) {
                 WelcomeScreen(
                     onSignIn = { navController.navigate(Routes.SignIn) },
-                    onSignUp = { navController.navigate(Routes.SignUp) }
+                    onSignUp = { navController.navigate(Routes.SignUp) },
+                    onPreviewOnboarding = { navController.navigate(Routes.Onboarding) }
                 )
             }
             composable(Routes.SignIn) {
@@ -87,6 +114,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             // ---------- Main app tabs ----------
             composable(Routes.Home) {
                 HomeScreen(
+                    quests = quests,
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
             }
@@ -113,8 +141,14 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     questId = id,
                     onBack = { navController.popBackStack() },
                     onComplete = { navController.navigate(Routes.complete(id)) },
-                    onSaveForLater = { navController.popBackStack() },
-                    onSkip = { navController.popBackStack() }
+                    onSaveForLater = {
+                        updateStatus(id, QuestStatus.SavedForLater)
+                        navController.popBackStack()
+                    },
+                    onSkip = {
+                        updateStatus(id, QuestStatus.Skipped)
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(

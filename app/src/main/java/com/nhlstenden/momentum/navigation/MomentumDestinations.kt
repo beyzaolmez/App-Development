@@ -9,6 +9,9 @@ import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object Routes {
+    // First-run intro
+    const val Onboarding = "onboarding"
+
     // Auth flow
     const val Welcome = "welcome"
     const val SignIn = "signin"

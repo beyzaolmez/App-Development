@@ -20,7 +20,8 @@ import com.nhlstenden.momentum.ui.theme.MomentumTheme
 @Composable
 fun WelcomeScreen(
     onSignIn: () -> Unit = {},
-    onSignUp: () -> Unit = {}
+    onSignUp: () -> Unit = {},
+    onPreviewOnboarding: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -59,7 +60,7 @@ fun WelcomeScreen(
         )
         MomentumQuietButton(
             text = "Preview onboarding",
-            onClick = {},
+            onClick = onPreviewOnboarding,
             modifier = Modifier.fillMaxWidth()
         )
     }
