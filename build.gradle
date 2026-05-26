@@ -18,6 +18,9 @@ plugins {
     id 'com.google.gms.google-services' version '4.4.0' apply false
 }
 
+// Redirect root build output outside OneDrive to prevent file-locking errors.
+buildDir = new File("C:/AndroidBuildCache/root")
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

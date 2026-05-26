@@ -8,12 +8,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nhlstenden.momentum.data.InterestsStore
+import com.nhlstenden.momentum.data.StreakStore
+import com.nhlstenden.momentum.notification.NotificationHelper
 import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.QuestCard
@@ -43,20 +49,26 @@ fun HomeScreen(
     quests: List<Quest> = sampleQuests,
     onQuestClick: (String) -> Unit = {}
 ) {
-    val activeQuests = quests.filter { it.status == QuestStatus.Active }
+    val context = LocalContext.current
+    val savedInterests = remember { InterestsStore.load(context) }
+    val streak = remember { StreakStore.getStreak(context) }
+    // Show all quests when no interests have been saved yet (e.g. first launch / sign-in flow)
+    val displayedQuests = if (savedInterests.isEmpty()) quests.filter { it.status == QuestStatus.Active }
+                          else quests.filter { it.status == QuestStatus.Active && it.category in savedInterests }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { HomeHeader() }
+        item { HomeHeader(streak = streak) }
         item {
             Text(
                 "Your side quests",
                 style = MaterialTheme.typography.headlineMedium
             )
         }
-        items(activeQuests, key = { it.id }) { quest ->
+        items(displayedQuests, key = { it.id }) { quest ->
             QuestCard(
                 title = quest.title,
                 description = quest.description,
@@ -66,11 +78,24 @@ fun HomeScreen(
                 onClick = { onQuestClick(quest.id) }
             )
         }
+        item {
+            Button(
+                onClick = {
+                    NotificationHelper.showQuestNotification(
+                        context = context,
+                        questTitle = quests.firstOrNull()?.title ?: "Your quest awaits"
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Test notification")
+            }
+        }
     }
 }
 
 @Composable
-private fun HomeHeader() {
+private fun HomeHeader(streak: Int = 0) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             "Thursday",
@@ -78,9 +103,11 @@ private fun HomeHeader() {
             color = MaterialTheme.colorScheme.primary
         )
         Text("Hi Miriam", style = MaterialTheme.typography.headlineLarge)
+        val streakLabel = if (streak > 0) "$streak day streak" else "Start your streak"
+        val streakVariant = if (streak > 0) ChipVariant.Skills else ChipVariant.Neutral
         MomentumChip(
-            text = "Gentle day",
-            variant = ChipVariant.Skills,
+            text = streakLabel,
+            variant = streakVariant,
             modifier = Modifier.padding(top = 8.dp)
         )
     }

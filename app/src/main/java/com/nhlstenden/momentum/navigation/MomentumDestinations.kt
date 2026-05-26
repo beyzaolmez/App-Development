@@ -25,6 +25,9 @@ object Routes {
     const val Friends = "friends"
     const val Profile = "profile"
 
+    // Onboarding
+    const val Interests = "interests"
+
     // Detail screens
     const val QuestDetail = "quest/{id}"
     const val Complete = "complete/{id}"

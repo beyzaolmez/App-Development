@@ -25,6 +25,7 @@ import com.nhlstenden.momentum.ui.screens.home.HomeScreen
 import com.nhlstenden.momentum.ui.screens.home.Quest
 import com.nhlstenden.momentum.ui.screens.home.QuestStatus
 import com.nhlstenden.momentum.ui.screens.home.sampleQuests
+import com.nhlstenden.momentum.ui.screens.onboarding.InterestSelectionScreen
 import com.nhlstenden.momentum.ui.screens.onboarding.OnboardingScreen
 import com.nhlstenden.momentum.ui.screens.profile.ProfileScreen
 import com.nhlstenden.momentum.ui.screens.progress.ProgressScreen
@@ -96,12 +97,22 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             composable(Routes.SignUp) {
                 SignUpScreen(
                     onCreated = {
-                        navController.navigate(Routes.Home) {
+                        // New users pick their interests before landing on Home
+                        navController.navigate(Routes.Interests) {
                             popUpTo(Routes.Welcome) { inclusive = true }
                         }
                     },
                     onHaveAccount = { navController.navigate(Routes.SignIn) },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.Interests) {
+                InterestSelectionScreen(
+                    onContinue = {
+                        navController.navigate(Routes.Home) {
+                            popUpTo(Routes.Interests) { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(Routes.Forgot) {
