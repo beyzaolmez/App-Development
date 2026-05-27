@@ -1,11 +1,14 @@
 package com.nhlstenden.momentum.ui.screens.quest
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,6 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nhlstenden.momentum.data.model.Quest
+import com.nhlstenden.momentum.data.model.QuestFeedbackType
+import com.nhlstenden.momentum.data.model.QuestStatus
+import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
@@ -29,11 +36,14 @@ import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
 fun QuestDetailScreen(
-    questId: String,
+    quest: Quest?,
     onBack: () -> Unit = {},
+    onStart: () -> Unit = {},
     onComplete: () -> Unit = {},
     onSaveForLater: () -> Unit = {},
-    onSkip: () -> Unit = {}
+    onSkip: () -> Unit = {},
+    selectedFeedback: QuestFeedbackType? = null,
+    onFeedbackSelected: (QuestFeedbackType) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -49,43 +59,134 @@ fun QuestDetailScreen(
             Text("Quest", style = MaterialTheme.typography.titleLarge)
         }
 
+        if (quest == null) {
+            MissingQuestContent(onBack)
+            return@Column
+        }
+
         MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    MomentumChip("Academic", variant = ChipVariant.Category)
-                    Text("3 min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    MomentumChip(quest.category.label, variant = ChipVariant.Category)
+                    MomentumChip(quest.status.label, variant = quest.status.chipVariant())
                 }
-                Text("Read Chapter 4.", style = MaterialTheme.typography.headlineMedium)
+                Text(quest.title, style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    "Finish the assigned reading for History 101 before tomorrow's seminar.",
+                    quest.description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MomentumChip("${quest.difficulty.label} · ${quest.estimatedMinutes} min", variant = ChipVariant.Neutral)
+                }
             }
         }
 
         MomentumCard {
-            Column(it, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Steps", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    "Open the chapter. Read in 10-minute blocks. Take one short break in the middle.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                quest.steps.forEachIndexed { index, step ->
+                    Text(
+                        "${index + 1}. $step",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
-        MomentumPrimaryButton("Done for today", onComplete, Modifier.fillMaxWidth())
-        MomentumSecondaryButton("Save for later", onSaveForLater, Modifier.fillMaxWidth())
-        MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+        QuestFeedbackCard(
+            selectedFeedback = selectedFeedback,
+            onFeedbackSelected = onFeedbackSelected
+        )
+
+        when (quest.status) {
+            QuestStatus.Available -> {
+                MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
+                MomentumSecondaryButton("Save for later", onSaveForLater, Modifier.fillMaxWidth())
+                MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+            }
+            QuestStatus.Active -> {
+                MomentumPrimaryButton("Done for today", onComplete, Modifier.fillMaxWidth())
+                MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+            }
+            QuestStatus.Completed -> {
+                MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+            }
+            QuestStatus.Skipped -> {
+                MomentumPrimaryButton("Start again", onStart, Modifier.fillMaxWidth())
+                MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+            }
+        }
     }
+}
+
+@Composable
+private fun QuestFeedbackCard(
+    selectedFeedback: QuestFeedbackType?,
+    onFeedbackSelected: (QuestFeedbackType) -> Unit
+) {
+    val feedbackOptions = QuestFeedbackType.entries
+
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Quest feedback", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Optional",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            Text(
+                "Helps tune future quest categories.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(feedbackOptions) { option ->
+                    MomentumChip(
+                        text = option.label,
+                        variant = if (selectedFeedback == option) ChipVariant.Skills else ChipVariant.Neutral,
+                        modifier = Modifier.clickable { onFeedbackSelected(option) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun QuestStatus.chipVariant(): ChipVariant = when (this) {
+    QuestStatus.Available -> ChipVariant.Category
+    QuestStatus.Active -> ChipVariant.Status
+    QuestStatus.Completed -> ChipVariant.Reward
+    QuestStatus.Skipped -> ChipVariant.Neutral
+}
+
+@Composable
+private fun MissingQuestContent(onBack: () -> Unit) {
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Quest not found", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                "This quest is no longer available.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    MomentumPrimaryButton("Return home", onBack, Modifier.fillMaxWidth())
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun QuestDetailPreview() {
-    MomentumTheme { QuestDetailScreen(questId = "q1") }
+    val quest = PredefinedQuestRepository().getQuests().first()
+    MomentumTheme { QuestDetailScreen(quest = quest) }
 }

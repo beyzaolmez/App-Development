@@ -21,7 +21,7 @@ import com.nhlstenden.momentum.ui.theme.MomentumTheme
 fun WelcomeScreen(
     onSignIn: () -> Unit = {},
     onSignUp: () -> Unit = {},
-    onPreviewOnboarding: () -> Unit = {}
+    onContinueWithoutAccount: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -41,7 +41,7 @@ fun WelcomeScreen(
             style = MaterialTheme.typography.headlineMedium
         )
         Text(
-            "Earn XP by completing tiny daily quests across academic, social, and personal growth.",
+            "Complete tiny daily quests across academic, social, wellbeing, focus, and movement goals.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -59,8 +59,8 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth()
         )
         MomentumQuietButton(
-            text = "Preview onboarding",
-            onClick = onPreviewOnboarding,
+            text = "Continue without account",
+            onClick = onContinueWithoutAccount,
             modifier = Modifier.fillMaxWidth()
         )
     }

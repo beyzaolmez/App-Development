@@ -46,21 +46,21 @@ private data class OnboardingPage(
     val body: String
 )
 
-private val OnboardingPages = listOf(
+private val onboardingPages = listOf(
     OnboardingPage(
         icon = Icons.Outlined.AutoAwesome,
         title = "Welcome to Momentum",
-        body = "Small steps count. Momentum helps you build the habits that move your life forward — one tiny win at a time."
+        body = "Small steps count. Momentum helps you build the habits that move your life forward, one tiny win at a time."
     ),
     OnboardingPage(
         icon = Icons.Outlined.SelfImprovement,
         title = "Quests for every kind of growth",
-        body = "Each day brings a handful of bite-sized quests across academic, social, and personal growth — picked to fit the time you actually have."
+        body = "Each day brings a handful of bite-sized quests across academic, social, wellbeing, focus, and movement goals."
     ),
     OnboardingPage(
         icon = Icons.Outlined.EmojiEvents,
-        title = "Earn XP. Reflect. Repeat.",
-        body = "Complete a quest to earn XP, reflect on what you learned, and watch your streaks compound. Progress you can feel."
+        title = "Complete. Reflect. Repeat.",
+        body = "Complete a quest, add quick feedback, and watch your progress grow without pressure."
     )
 )
 
@@ -70,9 +70,9 @@ fun OnboardingScreen(
     onFinish: () -> Unit = {},
     onSkip: () -> Unit = {}
 ) {
-    val pagerState = rememberPagerState(pageCount = { OnboardingPages.size })
+    val pagerState = rememberPagerState(pageCount = { onboardingPages.size })
     val scope = rememberCoroutineScope()
-    val isLastPage = pagerState.currentPage == OnboardingPages.lastIndex
+    val isLastPage = pagerState.currentPage == onboardingPages.lastIndex
 
     Column(
         modifier = Modifier
@@ -83,10 +83,7 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            MomentumQuietButton(
-                text = "Skip",
-                onClick = onSkip
-            )
+            MomentumQuietButton(text = "Skip", onClick = onSkip)
         }
 
         HorizontalPager(
@@ -95,11 +92,11 @@ fun OnboardingScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) { page ->
-            OnboardingPageContent(OnboardingPages[page])
+            OnboardingPageContent(onboardingPages[page])
         }
 
         PageIndicator(
-            pageCount = OnboardingPages.size,
+            pageCount = onboardingPages.size,
             currentPage = pagerState.currentPage,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -107,7 +104,7 @@ fun OnboardingScreen(
         )
 
         MomentumPrimaryButton(
-            text = if (isLastPage) "Get started" else "Next",
+            text = if (isLastPage) "Choose interests" else "Next",
             onClick = {
                 if (isLastPage) {
                     onFinish()
@@ -198,7 +195,6 @@ private fun PageIndicator(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun OnboardingScreenPreview() {

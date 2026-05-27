@@ -30,10 +30,20 @@ import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
+import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
-fun ProfileScreen(onSignOut: () -> Unit = {}) {
+fun ProfileScreen(
+    displayName: String,
+    subtitle: String,
+    isDemoUser: Boolean,
+    selectedInterests: List<String> = emptyList(),
+    onOpenFriends: () -> Unit = {},
+    onEditInterests: () -> Unit = {},
+    onSendTestNotification: () -> Unit = {},
+    onSignOut: () -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -55,29 +65,64 @@ fun ProfileScreen(onSignOut: () -> Unit = {}) {
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Miriam", style = MaterialTheme.typography.titleLarge)
-                    Text("University student", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(displayName, style = MaterialTheme.typography.titleLarge)
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                MomentumSecondaryButton("Edit", {})
+                MomentumSecondaryButton("Edit", {}, enabled = false)
             }
+        }
+
+        if (isDemoUser) {
+            MomentumStatusCard(
+                title = "Demo profile",
+                message = "Profile data is temporary until a Firebase account is signed in.",
+                variant = ChipVariant.Reward
+            )
         }
 
         MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SettingRow("Notifications", "One quiet reminder")
                 SettingRow("Private journal", "Only visible to you")
-                SettingRow("Shared streaks", "Friends you choose")
+                MomentumSecondaryButton(
+                    text = "Send test reminder",
+                    onClick = onSendTestNotification,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        MomentumCard {
+            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Friends", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Optional shared streaks and invites can live here later.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                MomentumSecondaryButton("Open friends", onOpenFriends, Modifier.fillMaxWidth())
             }
         }
 
         MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Interests", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    if (selectedInterests.isEmpty()) {
+                        "Choose interests to personalize your daily quest categories."
+                    } else {
+                        "These categories influence your daily quest list."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MomentumChip("Mind reset", variant = ChipVariant.Category)
-                    MomentumChip("Social ease", variant = ChipVariant.Skills)
-                    MomentumChip("Reflection", variant = ChipVariant.Reward)
+                    val interests = selectedInterests.ifEmpty { listOf("Not set") }
+                    interests.take(3).forEach { interest ->
+                        MomentumChip(interest, variant = ChipVariant.Category)
+                    }
                 }
+                MomentumSecondaryButton("Edit interests", onEditInterests, Modifier.fillMaxWidth())
             }
         }
 
@@ -112,5 +157,11 @@ private fun SettingRow(title: String, subtitle: String) {
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun ProfilePreview() {
-    MomentumTheme { ProfileScreen() }
+    MomentumTheme {
+        ProfileScreen(
+            displayName = "Testing user",
+            subtitle = "Demo mode",
+            isDemoUser = true
+        )
+    }
 }

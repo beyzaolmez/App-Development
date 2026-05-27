@@ -8,12 +8,11 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.nhlstenden.momentum.navigation.BottomTabs
+import com.nhlstenden.momentum.navigation.Routes
 
 // Brandbook §06: bottom nav — active = primary, inactive = outline.
 // Frosted glass effect isn't applied here (Compose backdrop-blur needs extra deps);
@@ -34,11 +33,8 @@ fun MomentumBottomNav(navController: NavHostController) {
                 selected = selected,
                 onClick = {
                     navController.navigate(tab.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
+                        popUpTo(Routes.Home)
                         launchSingleTop = true
-                        restoreState = true
                     }
                 },
                 icon = { Icon(tab.icon, contentDescription = tab.label) },
