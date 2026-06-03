@@ -25,9 +25,11 @@ object Routes {
 
     // Detail screens
     const val QuestDetail = "quest/{id}"
+    const val QuestReflection = "quest/{id}/reflection"
     const val Complete = "complete/{id}"
 
     fun questDetail(id: String) = "quest/$id"
+    fun questReflection(id: String) = "quest/$id/reflection"
     fun complete(id: String) = "complete/$id"
 }
 

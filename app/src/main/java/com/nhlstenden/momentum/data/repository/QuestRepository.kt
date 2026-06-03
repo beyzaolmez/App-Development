@@ -160,7 +160,8 @@ class PredefinedQuestRepository : QuestRepository {
                 "Open a notebook or notes app.",
                 "Write three things you're grateful for — be specific.",
                 "Read them back once before closing."
-            )
+            ),
+            journalPrompt = "Write three specific things you are grateful for today."
         ),
         Quest(
             id = "body-scan",
@@ -188,7 +189,8 @@ class PredefinedQuestRepository : QuestRepository {
                 "Dim your lights or switch to warm lighting 30 minutes before bed.",
                 "Put your phone on Do Not Disturb.",
                 "Do one calming activity: read, stretch, or journal."
-            )
+            ),
+            journalPrompt = "What helped you slow down tonight?"
         ),
         // ── Social ────────────────────────────────────────────────────────────
         Quest(
@@ -260,7 +262,8 @@ class PredefinedQuestRepository : QuestRepository {
                 "Choose a short route.",
                 "Walk without checking study notifications.",
                 "Notice one thing outside your usual routine."
-            )
+            ),
+            journalPrompt = "What did you notice during the walk?"
         ),
         Quest(
             id = "stretch-break",
@@ -384,6 +387,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
     val estimatedMinutes = getLong("estimatedMinutes")?.toInt() ?: 5
     val xp = getLong("xp")?.toInt() ?: 0
     val steps = get("steps").toStringList()
+    val journalPrompt = getString("journalPrompt")?.takeIf { it.isNotBlank() } ?: defaultJournalPrompt(id)
 
     return Quest(
         id = id,
@@ -393,7 +397,8 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
         xp = xp,
         difficulty = difficulty,
         estimatedMinutes = estimatedMinutes,
-        steps = steps
+        steps = steps,
+        journalPrompt = journalPrompt
     )
 }
 
@@ -421,8 +426,16 @@ private fun Quest.toQuestFirestoreMap(): Map<String, Any?> = mapOf(
     "estimatedMinutes" to estimatedMinutes,
     "xp" to xp,
     "steps" to steps,
+    "journalPrompt" to journalPrompt,
     "isActive" to true
 )
+
+private fun defaultJournalPrompt(questId: String): String? = when (questId) {
+    "gratitude-note" -> "Write three specific things you are grateful for today."
+    "wind-down" -> "What helped you slow down tonight?"
+    "walk-loop" -> "What did you notice during the walk?"
+    else -> null
+}
 
 private fun QuestState.toFirestoreMap(): Map<String, Any?> = mapOf(
     "questStateId" to questStateId,

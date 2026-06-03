@@ -9,6 +9,7 @@ data class Quest(
     val difficulty: QuestDifficulty,
     val estimatedMinutes: Int,
     val steps: List<String>,
+    val journalPrompt: String? = null,
     val status: QuestStatus = QuestStatus.Available
 )
 

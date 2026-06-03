@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.QuestLocalCache
+import com.nhlstenden.momentum.data.model.JournalEntry
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestFeedback
@@ -17,16 +18,20 @@ import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.data.model.User
 import com.nhlstenden.momentum.data.model.UserProgress
+import com.nhlstenden.momentum.data.repository.FirestoreReflectionRepository
 import com.nhlstenden.momentum.data.repository.FirestoreQuestFeedbackRepository
 import com.nhlstenden.momentum.data.repository.FirestoreQuestRepository
 import com.nhlstenden.momentum.data.repository.FirestoreUserRepository
+import com.nhlstenden.momentum.data.repository.InMemoryReflectionRepository
 import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.data.repository.QuestRepository
+import com.nhlstenden.momentum.data.repository.ReflectionRepository
 import com.nhlstenden.momentum.data.repository.UserRepository
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -37,7 +42,9 @@ class QuestViewModel(
     private val firestoreQuestRepository: FirestoreQuestRepository = FirestoreQuestRepository(),
     private val feedbackRepository: FirestoreQuestFeedbackRepository = FirestoreQuestFeedbackRepository(),
     private val fallbackQuestRepository: QuestRepository = PredefinedQuestRepository(),
-    private val userRepository: UserRepository = FirestoreUserRepository()
+    private val userRepository: UserRepository = FirestoreUserRepository(),
+    private val reflectionRepository: ReflectionRepository = FirestoreReflectionRepository(),
+    private val demoReflectionRepository: ReflectionRepository = InMemoryReflectionRepository()
 ) : ViewModel() {
     private val dailyQuestLimit = 3
     private val today: String
@@ -59,6 +66,9 @@ class QuestViewModel(
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
+        private set
+
+    var journalErrorByQuestId by mutableStateOf<Map<String, String>>(emptyMap())
         private set
 
     private var quests by mutableStateOf<List<Quest>>(emptyList())
@@ -129,6 +139,8 @@ class QuestViewModel(
 
     fun questById(id: String): Quest? = quests.firstOrNull { it.id == id }
 
+    fun reflectionPromptForQuest(id: String): String = questById(id)?.reflectionPrompt() ?: DEFAULT_REFLECTION_PROMPT
+
     fun feedbackForQuest(id: String): QuestFeedbackType? = feedbackByQuestId[id]
 
     fun isQuestLiked(id: String): Boolean = feedbackByQuestId[id] == QuestFeedbackType.Like
@@ -146,6 +158,36 @@ class QuestViewModel(
     fun completeQuest(id: String) {
         if (questById(id)?.status == QuestStatus.Completed) return
         updateQuestStatus(id, QuestStatus.Completed)
+    }
+
+    fun completeQuestWithReflection(
+        id: String,
+        note: String,
+        promptChoice: String? = null,
+        quickTake: String? = null
+    ): Boolean {
+        val quest = questById(id) ?: return false
+        val trimmedNote = note.trim()
+        val reflectionPrompt = quest.reflectionPrompt()
+
+        if (trimmedNote.isBlank()) {
+            journalErrorByQuestId = journalErrorByQuestId + (id to "Write a short reflection before saving.")
+            return false
+        }
+
+        journalErrorByQuestId = journalErrorByQuestId - id
+
+        val entry = JournalEntry(
+            journalEntryId = UUID.randomUUID().toString(),
+            questId = id,
+            promptChoice = promptChoice ?: reflectionPrompt,
+            quickTake = quickTake,
+            note = trimmedNote,
+            createdAt = System.currentTimeMillis()
+        )
+
+        saveReflectionThenComplete(id = id, entry = entry)
+        return true
     }
 
     fun skipQuest(id: String) {
@@ -329,6 +371,32 @@ class QuestViewModel(
         }
     }
 
+    private fun saveReflectionThenComplete(id: String, entry: JournalEntry?) {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            if (entry != null) {
+                viewModelScope.launch {
+                    demoReflectionRepository.saveReflection(DEMO_REFLECTION_UID, entry)
+                }
+            }
+            completeQuest(id)
+            return
+        }
+
+        viewModelScope.launch {
+            if (entry != null) {
+                runCatching {
+                    withTimeout(FIRESTORE_TIMEOUT_MS) {
+                        reflectionRepository.saveReflection(uid, entry)
+                    }
+                }.onFailure {
+                    errorMessage = "Quest completed, but the reflection could not sync yet."
+                }
+            }
+            completeQuest(id)
+        }
+    }
+
     private suspend fun ensureDailyAssignments(uid: String) {
         dailyQuestIds.forEach { questId ->
             val quest = questById(questId) ?: return@forEach
@@ -447,6 +515,8 @@ enum class QuestDataMode {
 
 private const val FIRESTORE_TIMEOUT_MS = 8_000L
 private const val DIRECT_FEEDBACK_WEIGHT = 100
+private const val DEMO_REFLECTION_UID = "demo-reflections"
+private const val DEFAULT_REFLECTION_PROMPT = "What did you notice, learn, or want to do differently next time?"
 
 private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
@@ -525,3 +595,11 @@ private val QuestFeedbackType.preferenceScore: Int
         QuestFeedbackType.NotForMe -> -1
         QuestFeedbackType.Dislike -> -2
     }
+
+private fun Quest.reflectionPrompt(): String = journalPrompt ?: when (category) {
+    QuestCategory.Academic -> "What helped your learning, and what could you improve next time?"
+    QuestCategory.Focus -> "What made it easier or harder to stay focused?"
+    QuestCategory.Wellbeing -> "How did this affect how you feel right now?"
+    QuestCategory.Social -> "What did you notice about the interaction?"
+    QuestCategory.Movement -> "How did your body or energy feel afterward?"
+}
