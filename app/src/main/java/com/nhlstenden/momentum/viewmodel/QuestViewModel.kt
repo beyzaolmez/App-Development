@@ -24,6 +24,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
@@ -173,29 +175,55 @@ class QuestViewModel(
                 val remoteQuests = withTimeout(FIRESTORE_TIMEOUT_MS) {
                     firestoreQuestRepository.getRemoteQuests()
                 }
-                val loadedQuests = remoteQuests.ifEmpty {
-                    errorMessage = "No Firestore quests found yet. Showing demo quests."
-                    fallbackQuestRepository.getQuests()
-                }
-                val todayStates = withTimeout(FIRESTORE_TIMEOUT_MS) {
-                    firestoreQuestRepository.getQuestStates(uid)
-                        .filter { it.date == today }
-                }
-                feedbackByQuestId = withTimeout(FIRESTORE_TIMEOUT_MS) {
-                    feedbackRepository.getFeedback(uid)
-                        .associate { it.questId to it.feedbackType }
-                }
-                userProgress = withTimeout(FIRESTORE_TIMEOUT_MS) {
-                    userRepository.getUser(uid)?.progress ?: UserProgress()
+
+                val loadedQuests = if (remoteQuests.isEmpty()) {
+                    val predefined = fallbackQuestRepository.getQuests()
+                    runCatching {
+                        withTimeout(FIRESTORE_TIMEOUT_MS) {
+                            firestoreQuestRepository.seedQuests(predefined)
+                        }
+                    }
+                    predefined
+                } else {
+                    remoteQuests
                 }
 
+                val (todayStates, feedback, user) = coroutineScope {
+                    val statesDeferred = async {
+                        runCatching {
+                            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                                firestoreQuestRepository.getQuestStates(uid)
+                                    .filter { it.date == today }
+                            }
+                        }.getOrDefault(emptyList())
+                    }
+                    val feedbackDeferred = async {
+                        runCatching {
+                            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                                feedbackRepository.getFeedback(uid)
+                                    .associate { it.questId to it.feedbackType }
+                            }
+                        }.getOrDefault(emptyMap())
+                    }
+                    val userDeferred = async {
+                        runCatching {
+                            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                                userRepository.getUser(uid)
+                            }
+                        }.getOrNull()
+                    }
+                    Triple(statesDeferred.await(), feedbackDeferred.await(), userDeferred.await())
+                }
+
+                feedbackByQuestId = feedback
+                userProgress = user?.progress ?: UserProgress()
                 quests = loadedQuests.withStates(todayStates)
                 dailyQuestIds = todayStates
                     .filter { it.isDailyAssigned }
                     .map { it.questId }
                     .toSet()
                     .ifEmpty { loadedQuests.take(dailyQuestLimit).map { it.id }.toSet() }
-                dataMode = if (remoteQuests.isEmpty()) QuestDataMode.Demo else QuestDataMode.Firestore
+                dataMode = QuestDataMode.Firestore
                 withTimeout(FIRESTORE_TIMEOUT_MS) {
                     ensureDailyAssignments(uid)
                 }

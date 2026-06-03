@@ -19,6 +19,7 @@ class PredefinedQuestRepository : QuestRepository {
     private val questStatesByUser = mutableMapOf<String, List<QuestState>>()
 
     private val quests = listOf(
+        // ── Academic ──────────────────────────────────────────────────────────
         Quest(
             id = "chapter-focus",
             title = "Read Chapter 4",
@@ -34,6 +35,106 @@ class PredefinedQuestRepository : QuestRepository {
             )
         ),
         Quest(
+            id = "lecture-summary",
+            title = "Summarise one lecture",
+            description = "Convert your raw notes into a short structured summary.",
+            category = QuestCategory.Academic,
+            xp = 100,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 20,
+            steps = listOf(
+                "Open your notes from the most recent lecture.",
+                "Identify the three main points.",
+                "Write a 5-sentence summary in your own words."
+            )
+        ),
+        Quest(
+            id = "deadline-plan",
+            title = "Map out this week's deadlines",
+            description = "Get every upcoming task out of your head and into a plan.",
+            category = QuestCategory.Academic,
+            xp = 120,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 15,
+            steps = listOf(
+                "Open your calendar or planner.",
+                "List every deadline for the next 7 days.",
+                "Assign one work slot to the most urgent item."
+            )
+        ),
+        Quest(
+            id = "essay-outline",
+            title = "Draft an essay outline",
+            description = "Build the skeleton before you write a single sentence.",
+            category = QuestCategory.Academic,
+            xp = 180,
+            difficulty = QuestDifficulty.Hard,
+            estimatedMinutes = 40,
+            steps = listOf(
+                "State your thesis in one sentence.",
+                "List three supporting arguments with evidence.",
+                "Write a one-line topic sentence for each paragraph."
+            )
+        ),
+        // ── Focus ─────────────────────────────────────────────────────────────
+        Quest(
+            id = "deep-work-block",
+            title = "25-minute deep work block",
+            description = "One task, zero interruptions, full attention.",
+            category = QuestCategory.Focus,
+            xp = 120,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 25,
+            steps = listOf(
+                "Choose exactly one task to work on.",
+                "Put your phone face-down and close unrelated tabs.",
+                "Work until the 25 minutes are up, then take a 5-minute break."
+            )
+        ),
+        Quest(
+            id = "phone-free-hour",
+            title = "Phone-free study hour",
+            description = "Put your phone in another room and see what your brain can do.",
+            category = QuestCategory.Focus,
+            xp = 100,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 60,
+            steps = listOf(
+                "Place your phone in a different room.",
+                "Set a timer for 60 minutes.",
+                "Notice how your focus changes without the pull of notifications."
+            )
+        ),
+        Quest(
+            id = "desk-reset",
+            title = "Clear your workspace before starting",
+            description = "A tidy desk signals to your brain that it's time to work.",
+            category = QuestCategory.Focus,
+            xp = 60,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 10,
+            steps = listOf(
+                "Remove everything from your desk that isn't for today's task.",
+                "Wipe the surface and open only the tabs you need.",
+                "Start the work within two minutes of finishing the clear-out."
+            )
+        ),
+        Quest(
+            id = "weekly-review",
+            title = "Weekly priority review",
+            description = "Close the week by capturing loose ends and setting three priorities for next week.",
+            category = QuestCategory.Focus,
+            xp = 200,
+            difficulty = QuestDifficulty.Hard,
+            estimatedMinutes = 45,
+            steps = listOf(
+                "List everything still open from this week.",
+                "Mark the three most important items for next week.",
+                "Schedule a specific time slot for each of the three."
+            )
+        ),
+        // ── Wellbeing ─────────────────────────────────────────────────────────
+        Quest(
             id = "mindful-reset",
             title = "15-minute mindful reset",
             description = "Take a short grounding break between classes.",
@@ -47,6 +148,49 @@ class PredefinedQuestRepository : QuestRepository {
                 "Name one thing that would make today lighter."
             )
         ),
+        Quest(
+            id = "gratitude-note",
+            title = "Write a gratitude note",
+            description = "Three specific things you're glad happened today or this week.",
+            category = QuestCategory.Wellbeing,
+            xp = 60,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 10,
+            steps = listOf(
+                "Open a notebook or notes app.",
+                "Write three things you're grateful for — be specific.",
+                "Read them back once before closing."
+            )
+        ),
+        Quest(
+            id = "body-scan",
+            title = "5-minute body scan",
+            description = "Check in with where you're holding tension and consciously release it.",
+            category = QuestCategory.Wellbeing,
+            xp = 50,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 5,
+            steps = listOf(
+                "Sit or lie down comfortably.",
+                "Slowly scan from your feet to your head, noticing tension.",
+                "Breathe into each tense area and let it soften."
+            )
+        ),
+        Quest(
+            id = "wind-down",
+            title = "Evening wind-down routine",
+            description = "Signal to your nervous system that the day is done.",
+            category = QuestCategory.Wellbeing,
+            xp = 110,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 30,
+            steps = listOf(
+                "Dim your lights or switch to warm lighting 30 minutes before bed.",
+                "Put your phone on Do Not Disturb.",
+                "Do one calming activity: read, stretch, or journal."
+            )
+        ),
+        // ── Social ────────────────────────────────────────────────────────────
         Quest(
             id = "friend-check-in",
             title = "Message one friend",
@@ -62,6 +206,49 @@ class PredefinedQuestRepository : QuestRepository {
             )
         ),
         Quest(
+            id = "voice-note",
+            title = "Send a voice note",
+            description = "Skip the typing and send a 60-second voice message instead.",
+            category = QuestCategory.Social,
+            xp = 60,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 5,
+            steps = listOf(
+                "Choose someone you've been meaning to catch up with.",
+                "Record a short voice message — no script needed.",
+                "Send it without overthinking."
+            )
+        ),
+        Quest(
+            id = "classmate-outreach",
+            title = "Reach out to a classmate",
+            description = "Share notes, ask a question, or suggest a study session.",
+            category = QuestCategory.Social,
+            xp = 90,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 10,
+            steps = listOf(
+                "Pick a classmate you haven't spoken to this week.",
+                "Share something useful: a summary, a question, or a resource.",
+                "See if they want to study together."
+            )
+        ),
+        Quest(
+            id = "honest-convo",
+            title = "Have one honest conversation",
+            description = "Say something real instead of something safe.",
+            category = QuestCategory.Social,
+            xp = 130,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 20,
+            steps = listOf(
+                "Think of something you've been holding back from saying.",
+                "Choose the right moment and the right person.",
+                "Say it clearly and listen to the response."
+            )
+        ),
+        // ── Movement ──────────────────────────────────────────────────────────
+        Quest(
             id = "walk-loop",
             title = "Take a campus walk",
             description = "Do one small movement quest to reset your energy.",
@@ -73,6 +260,48 @@ class PredefinedQuestRepository : QuestRepository {
                 "Choose a short route.",
                 "Walk without checking study notifications.",
                 "Notice one thing outside your usual routine."
+            )
+        ),
+        Quest(
+            id = "stretch-break",
+            title = "10-minute full-body stretch",
+            description = "Undo the damage of sitting by moving every major muscle group.",
+            category = QuestCategory.Movement,
+            xp = 70,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 10,
+            steps = listOf(
+                "Stand up from your desk.",
+                "Stretch your neck, shoulders, back, and hips for 2 minutes each.",
+                "Finish with three slow deep breaths."
+            )
+        ),
+        Quest(
+            id = "stairs-day",
+            title = "Stairs only — all day",
+            description = "Every lift you skip is a small win for your heart.",
+            category = QuestCategory.Movement,
+            xp = 80,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 0,
+            steps = listOf(
+                "Commit to using stairs instead of lifts or escalators today.",
+                "Notice how you feel by the end of the day.",
+                "Count it as a win even if you only manage it for part of the day."
+            )
+        ),
+        Quest(
+            id = "workout-session",
+            title = "30-minute workout",
+            description = "A full session — whatever form of movement works for you.",
+            category = QuestCategory.Movement,
+            xp = 200,
+            difficulty = QuestDifficulty.Hard,
+            estimatedMinutes = 30,
+            steps = listOf(
+                "Choose your activity: gym, run, home workout, cycle, or swim.",
+                "Warm up for 5 minutes before you push hard.",
+                "Cool down and stretch afterwards."
             )
         )
     )
@@ -101,6 +330,15 @@ class FirestoreQuestRepository(
     override fun getQuests(): List<Quest> = emptyList()
 
     override fun getQuestById(id: String): Quest? = null
+
+    suspend fun seedQuests(quests: List<Quest>) {
+        val batch = firestore.batch()
+        quests.forEach { quest ->
+            val doc = firestore.collection("quests").document(quest.id)
+            batch.set(doc, quest.toQuestFirestoreMap())
+        }
+        batch.commit().await()
+    }
 
     suspend fun getRemoteQuests(): List<Quest> {
         val snapshot = firestore
@@ -179,6 +417,17 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuestState(): Quest
         skippedAt = getLong("skippedAt")
     )
 }
+
+private fun Quest.toQuestFirestoreMap(): Map<String, Any?> = mapOf(
+    "title" to title,
+    "description" to description,
+    "category" to category.name,
+    "difficulty" to difficulty.name,
+    "estimatedMinutes" to estimatedMinutes,
+    "xp" to xp,
+    "steps" to steps,
+    "isActive" to true
+)
 
 private fun QuestState.toFirestoreMap(): Map<String, Any?> = mapOf(
     "questStateId" to questStateId,
