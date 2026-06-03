@@ -53,6 +53,23 @@ class AuthRepository(
         }
     }
 
+    suspend fun updateDisplayName(name: String) {
+        val firebaseUser = firebaseAuth.currentUser ?: return
+        val trimmed = name.trim()
+
+        firebaseUser.updateProfile(
+            UserProfileChangeRequest.Builder()
+                .setDisplayName(trimmed)
+                .build()
+        ).await()
+
+        runCatching {
+            withTimeout(5_000) {
+                userRepository.updateDisplayName(firebaseUser.uid, trimmed)
+            }
+        }
+    }
+
     suspend fun signIn(email: String, password: String) {
         firebaseAuth.signInWithEmailAndPassword(email, password).await()
         ensureUserProfile()

@@ -32,6 +32,7 @@ import com.nhlstenden.momentum.ui.screens.progress.ProgressScreen
 import com.nhlstenden.momentum.ui.screens.quest.CompleteScreen
 import com.nhlstenden.momentum.ui.screens.quest.QuestDetailScreen
 import com.nhlstenden.momentum.ui.screens.reflect.ReflectScreen
+import com.nhlstenden.momentum.viewmodel.ProfileViewModel
 import com.nhlstenden.momentum.viewmodel.QuestViewModel
 
 // Routes where the bottom nav should be visible.
@@ -45,6 +46,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
     val questViewModel: QuestViewModel = viewModel()
+    val profileViewModel: ProfileViewModel = viewModel()
     val context = LocalContext.current
     val currentUser = FirebaseAuth.getInstance().currentUser
     val currentUserId = currentUser?.uid
@@ -158,13 +160,16 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             composable(Routes.Profile) {
                 val firebaseUser = FirebaseAuth.getInstance().currentUser
                 ProfileScreen(
-                    displayName = firebaseUser?.displayName
-                        ?.takeIf { it.isNotBlank() }
-                        ?: firebaseUser?.email?.substringBefore("@")
-                        ?: "Testing user",
+                    displayName = profileViewModel.displayName
+                        .ifBlank {
+                            firebaseUser?.email?.substringBefore("@") ?: "Testing user"
+                        },
                     subtitle = firebaseUser?.email ?: "Demo mode",
                     isDemoUser = firebaseUser == null,
                     selectedInterests = InterestsStore.load(context, firebaseUser?.uid).toList(),
+                    isSavingName = profileViewModel.isSaving,
+                    saveNameError = profileViewModel.saveError,
+                    onSaveDisplayName = { newName -> profileViewModel.updateDisplayName(newName) },
                     onOpenFriends = { navController.navigate(Routes.Friends) },
                     onEditInterests = { navController.navigate(Routes.Interests) },
                     onSendTestNotification = {
