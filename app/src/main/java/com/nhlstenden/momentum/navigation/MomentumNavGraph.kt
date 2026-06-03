@@ -201,6 +201,10 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                         questViewModel.skipQuest(id)
                         navController.popBackStack()
                     },
+                    isLiked = questViewModel.isQuestLiked(id),
+                    isDisliked = questViewModel.isQuestDisliked(id),
+                    onLike = { questViewModel.likeQuest(id) },
+                    onDislike = { questViewModel.dislikeQuest(id) },
                     selectedFeedback = questViewModel.feedbackForQuest(id),
                     onFeedbackSelected = { feedbackType ->
                         questViewModel.saveFeedback(id, feedbackType)
