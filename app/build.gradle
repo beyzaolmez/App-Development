@@ -4,8 +4,10 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
-// Redirect build output outside OneDrive to prevent file-locking errors during compilation.
-buildDir = new File("C:/AndroidBuildCache/app")
+// Redirect build output outside OneDrive on Windows only (CI uses default location).
+if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+    buildDir = new File("C:/AndroidBuildCache/app")
+}
 
 android {
     namespace 'com.nhlstenden.momentum'
