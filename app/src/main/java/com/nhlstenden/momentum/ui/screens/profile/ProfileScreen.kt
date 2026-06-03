@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -23,16 +24,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.nhlstenden.momentum.data.InterestsStore
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
+import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.components.MomentumStatusCard
+import com.nhlstenden.momentum.ui.components.MomentumTextField
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
@@ -41,11 +42,16 @@ fun ProfileScreen(
     subtitle: String,
     isDemoUser: Boolean,
     selectedInterests: List<String> = emptyList(),
+    isSavingName: Boolean = false,
+    saveNameError: String? = null,
+    onSaveDisplayName: ((String) -> Unit)? = null,
     onOpenFriends: () -> Unit = {},
     onEditInterests: () -> Unit = {},
     onSendTestNotification: () -> Unit = {},
     onSignOut: () -> Unit = {}
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editedName by remember(displayName) { mutableStateOf(displayName) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -56,21 +62,61 @@ fun ProfileScreen(
         Text("Profile", style = MaterialTheme.typography.headlineLarge)
 
         MomentumCard {
-            Row(
-                modifier = it,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(displayName, style = MaterialTheme.typography.titleLarge)
-                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(modifier = it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(displayName, style = MaterialTheme.typography.titleLarge)
+                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (!isDemoUser) {
+                        if (isSavingName) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            MomentumSecondaryButton(
+                                text = if (isEditing) "Cancel" else "Edit",
+                                onClick = {
+                                    isEditing = !isEditing
+                                    editedName = displayName
+                                }
+                            )
+                        }
+                    }
                 }
-                MomentumSecondaryButton("Edit", {}, enabled = false)
+                if (isEditing && !isDemoUser) {
+                    MomentumTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        placeholder = "Your display name"
+                    )
+                    if (saveNameError != null) {
+                        Text(
+                            saveNameError,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    MomentumPrimaryButton(
+                        text = "Save name",
+                        onClick = {
+                            onSaveDisplayName?.invoke(editedName)
+                            isEditing = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = editedName.isNotBlank() && editedName != displayName
+                    )
+                }
             }
         }
 

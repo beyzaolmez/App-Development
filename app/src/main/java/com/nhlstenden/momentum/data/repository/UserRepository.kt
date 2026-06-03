@@ -8,6 +8,7 @@ import kotlinx.coroutines.tasks.await
 interface UserRepository {
     suspend fun getUser(uid: String): User?
     suspend fun saveUser(user: User)
+    suspend fun updateDisplayName(uid: String, displayName: String)
     suspend fun updateInterests(uid: String, interests: List<String>)
     suspend fun updateNotificationPreference(uid: String, enabled: Boolean)
     suspend fun updateProgress(uid: String, progress: UserProgress)
@@ -20,6 +21,10 @@ class InMemoryUserRepository : UserRepository {
 
     override suspend fun saveUser(user: User) {
         users[user.uid] = user
+    }
+
+    override suspend fun updateDisplayName(uid: String, displayName: String) {
+        users[uid] = users[uid]?.copy(displayName = displayName) ?: return
     }
 
     override suspend fun updateInterests(uid: String, interests: List<String>) {
@@ -58,6 +63,13 @@ class FirestoreUserRepository(
         firestore.collection("users")
             .document(user.uid)
             .set(user.toFirestoreMap())
+            .await()
+    }
+
+    override suspend fun updateDisplayName(uid: String, displayName: String) {
+        firestore.collection("users")
+            .document(uid)
+            .update("displayName", displayName)
             .await()
     }
 
