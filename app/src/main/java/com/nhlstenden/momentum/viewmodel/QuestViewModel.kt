@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestFeedback
+import com.nhlstenden.momentum.data.model.QuestFeedbackRules
 import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
@@ -117,6 +118,10 @@ class QuestViewModel(
 
     fun feedbackForQuest(id: String): QuestFeedbackType? = feedbackByQuestId[id]
 
+    fun isQuestLiked(id: String): Boolean = feedbackByQuestId[id] == QuestFeedbackType.Like
+
+    fun isQuestDisliked(id: String): Boolean = feedbackByQuestId[id] == QuestFeedbackType.Dislike
+
     fun selectStatus(status: QuestStatus?) {
         selectedStatus = status
     }
@@ -132,6 +137,24 @@ class QuestViewModel(
 
     fun skipQuest(id: String) {
         updateQuestStatus(id, QuestStatus.Skipped)
+    }
+
+    /**
+     * Records a positive ("like") reaction for a quest. Duplicate likes are
+     * rejected silently: if the quest is already liked, nothing is written again.
+     */
+    fun likeQuest(id: String) {
+        if (QuestFeedbackRules.isDuplicateLike(feedbackByQuestId[id], QuestFeedbackType.Like)) return
+        saveFeedback(id, QuestFeedbackType.Like)
+    }
+
+    /**
+     * Records a negative ("dislike") reaction for a quest. Duplicate dislikes are
+     * rejected silently: if the quest is already disliked, nothing is written again.
+     */
+    fun dislikeQuest(id: String) {
+        if (QuestFeedbackRules.isDuplicateDislike(feedbackByQuestId[id], QuestFeedbackType.Dislike)) return
+        saveFeedback(id, QuestFeedbackType.Dislike)
     }
 
     fun saveFeedback(id: String, feedbackType: QuestFeedbackType) {
