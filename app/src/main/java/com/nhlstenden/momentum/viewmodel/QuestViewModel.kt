@@ -11,6 +11,7 @@ import com.nhlstenden.momentum.data.QuestLocalCache
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestFeedback
+import com.nhlstenden.momentum.data.model.QuestFeedbackRules
 import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
@@ -45,6 +46,7 @@ class QuestViewModel(
     private var localCache: QuestLocalCache? = null
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
     private var feedbackByQuestId by mutableStateOf<Map<String, QuestFeedbackType>>(emptyMap())
+    private var feedbackScoreByCategory by mutableStateOf<Map<QuestCategory, Int>>(emptyMap())
     private var userProgress by mutableStateOf(UserProgress())
 
     var isLoading by mutableStateOf(true)
@@ -93,7 +95,8 @@ class QuestViewModel(
         }
 
         return visibleCandidates.sortedWith(
-            compareBy<Quest> { it.status.sortOrder }
+            compareByDescending<Quest> { it.recommendationScore() }
+                .thenBy { it.status.sortOrder }
                 .thenBy { it.category.label }
                 .thenBy { it.title }
         )
@@ -128,6 +131,10 @@ class QuestViewModel(
 
     fun feedbackForQuest(id: String): QuestFeedbackType? = feedbackByQuestId[id]
 
+    fun isQuestLiked(id: String): Boolean = feedbackByQuestId[id] == QuestFeedbackType.Like
+
+    fun isQuestDisliked(id: String): Boolean = feedbackByQuestId[id] == QuestFeedbackType.Dislike
+
     fun selectStatus(status: QuestStatus?) {
         selectedStatus = status
     }
@@ -145,10 +152,35 @@ class QuestViewModel(
         updateQuestStatus(id, QuestStatus.Skipped)
     }
 
+    /**
+     * Records a positive ("like") reaction for a quest. Duplicate likes are
+     * rejected silently: if the quest is already liked, nothing is written again.
+     */
+    fun likeQuest(id: String) {
+        if (QuestFeedbackRules.isDuplicateLike(feedbackByQuestId[id], QuestFeedbackType.Like)) return
+        saveFeedback(id, QuestFeedbackType.Like)
+    }
+
+    /**
+     * Records a negative ("dislike") reaction for a quest. Duplicate dislikes are
+     * rejected silently: if the quest is already disliked, nothing is written again.
+     */
+    fun dislikeQuest(id: String) {
+        if (QuestFeedbackRules.isDuplicateDislike(feedbackByQuestId[id], QuestFeedbackType.Dislike)) return
+        saveFeedback(id, QuestFeedbackType.Dislike)
+    }
+
     fun saveFeedback(id: String, feedbackType: QuestFeedbackType) {
-        feedbackByQuestId = feedbackByQuestId + (id to feedbackType)
-        val uid = auth.currentUser?.uid ?: return
         val quest = questById(id) ?: return
+        val previousFeedbackType = feedbackByQuestId[id]
+        feedbackByQuestId = feedbackByQuestId + (id to feedbackType)
+        feedbackScoreByCategory = feedbackScoreByCategory.updatedWith(
+            category = quest.category,
+            previousFeedbackType = previousFeedbackType,
+            newFeedbackType = feedbackType
+        )
+        refreshDailyAssignments()
+        val uid = auth.currentUser?.uid ?: return
 
         viewModelScope.launch {
             runCatching {
@@ -219,9 +251,8 @@ class QuestViewModel(
                         runCatching {
                             withTimeout(FIRESTORE_TIMEOUT_MS) {
                                 feedbackRepository.getFeedback(uid)
-                                    .associate { it.questId to it.feedbackType }
                             }
-                        }.getOrDefault(emptyMap())
+                        }.getOrDefault(emptyList())
                     }
                     val userDeferred = async {
                         runCatching {
@@ -235,18 +266,15 @@ class QuestViewModel(
                     Triple(statesDeferred.await(), feedbackDeferred.await(), userDeferred.await())
                 }
 
-                feedbackByQuestId = feedback
+                feedbackByQuestId = feedback.associate { it.questId to it.feedbackType }
+                feedbackScoreByCategory = feedback.toCategoryScores()
                 userProgress = preferredProgress(
                     remoteProgress = user?.progress,
                     cachedProgress = localCache?.loadUserProgress(uid),
                     currentProgress = userProgress
                 )
                 quests = loadedQuests.withStates(todayStates)
-                dailyQuestIds = todayStates
-                    .filter { it.isDailyAssigned }
-                    .map { it.questId }
-                    .toSet()
-                    .ifEmpty { loadedQuests.take(dailyQuestLimit).map { it.id }.toSet() }
+                refreshDailyAssignments()
                 dataMode = QuestDataMode.Firestore
                 runCatching {
                     withTimeout(FIRESTORE_TIMEOUT_MS) {
@@ -265,7 +293,7 @@ class QuestViewModel(
     private fun loadDemoQuests() {
         val demoQuests = fallbackQuestRepository.getQuests()
         quests = demoQuests
-        dailyQuestIds = demoQuests.take(dailyQuestLimit).map { it.id }.toSet()
+        refreshDailyAssignments(demoQuests)
         dataMode = QuestDataMode.Demo
         userProgress = UserProgress(currentStreak = if (completedQuestCount() > 0) 1 else 0)
     }
@@ -390,6 +418,26 @@ class QuestViewModel(
             quest.status != QuestStatus.Available || quest.id in dailyQuestIds
         }
     }
+
+    private fun List<Quest>.prioritizedByFeedback(): List<Quest> =
+        sortedWith(
+            compareByDescending<Quest> { it.recommendationScore() }
+                .thenBy { it.status.sortOrder }
+                .thenBy { it.category.label }
+                .thenBy { it.title }
+        )
+
+    private fun Quest.recommendationScore(): Int =
+        ((feedbackByQuestId[id]?.preferenceScore ?: 0) * DIRECT_FEEDBACK_WEIGHT) +
+            (feedbackScoreByCategory[category] ?: 0)
+
+    private fun refreshDailyAssignments(sourceQuests: List<Quest> = quests) {
+        dailyQuestIds = sourceQuests
+            .prioritizedByFeedback()
+            .take(dailyQuestLimit)
+            .map { it.id }
+            .toSet()
+    }
 }
 
 enum class QuestDataMode {
@@ -398,6 +446,7 @@ enum class QuestDataMode {
 }
 
 private const val FIRESTORE_TIMEOUT_MS = 8_000L
+private const val DIRECT_FEEDBACK_WEIGHT = 100
 
 private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
@@ -447,3 +496,32 @@ private fun Throwable.toQuestDataMessage(): String {
         else -> localizedMessage ?: "Could not sync quests right now. Showing demo quests."
     }
 }
+
+private fun List<QuestFeedback>.toCategoryScores(): Map<QuestCategory, Int> =
+    groupBy { it.category }
+        .mapValues { (_, feedback) -> feedback.sumOf { it.feedbackType.preferenceScore } }
+        .filterValues { it != 0 }
+
+private fun Map<QuestCategory, Int>.updatedWith(
+    category: QuestCategory,
+    previousFeedbackType: QuestFeedbackType?,
+    newFeedbackType: QuestFeedbackType
+): Map<QuestCategory, Int> {
+    val updatedScore = (this[category] ?: 0) -
+        (previousFeedbackType?.preferenceScore ?: 0) +
+        newFeedbackType.preferenceScore
+
+    return if (updatedScore == 0) {
+        this - category
+    } else {
+        this + (category to updatedScore)
+    }
+}
+
+private val QuestFeedbackType.preferenceScore: Int
+    get() = when (this) {
+        QuestFeedbackType.Like -> 2
+        QuestFeedbackType.MoreLikeThis -> 1
+        QuestFeedbackType.NotForMe -> -1
+        QuestFeedbackType.Dislike -> -2
+    }

@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -129,7 +127,7 @@ private fun QuestFeedbackCard(
     selectedFeedback: QuestFeedbackType?,
     onFeedbackSelected: (QuestFeedbackType) -> Unit
 ) {
-    val feedbackOptions = QuestFeedbackType.entries
+    val feedbackOptions = listOf(QuestFeedbackType.Like, QuestFeedbackType.Dislike)
 
     MomentumCard {
         Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -149,12 +147,17 @@ private fun QuestFeedbackCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(feedbackOptions) { option ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                feedbackOptions.forEach { option ->
                     MomentumChip(
                         text = option.label,
                         variant = if (selectedFeedback == option) ChipVariant.Skills else ChipVariant.Neutral,
-                        modifier = Modifier.clickable { onFeedbackSelected(option) }
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onFeedbackSelected(option) }
                     )
                 }
             }

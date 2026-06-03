@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import com.nhlstenden.momentum.data.InterestsStore
+import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.notification.NotificationHelper
 import com.nhlstenden.momentum.ui.components.MomentumBottomNav
 import com.nhlstenden.momentum.ui.screens.auth.ForgotPasswordScreen
@@ -212,7 +213,11 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     },
                     selectedFeedback = questViewModel.feedbackForQuest(id),
                     onFeedbackSelected = { feedbackType ->
-                        questViewModel.saveFeedback(id, feedbackType)
+                        when (feedbackType) {
+                            QuestFeedbackType.Like -> questViewModel.likeQuest(id)
+                            QuestFeedbackType.Dislike -> questViewModel.dislikeQuest(id)
+                            else -> questViewModel.saveFeedback(id, feedbackType)
+                        }
                     }
                 )
             }
