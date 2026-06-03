@@ -1,11 +1,13 @@
 package com.nhlstenden.momentum.viewmodel
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.nhlstenden.momentum.data.QuestLocalCache
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestFeedback
@@ -40,6 +42,7 @@ class QuestViewModel(
     private val today: String
         get() = dateFormat.format(Date())
 
+    private var localCache: QuestLocalCache? = null
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
     private var feedbackByQuestId by mutableStateOf<Map<String, QuestFeedbackType>>(emptyMap())
     private var userProgress by mutableStateOf(UserProgress())
@@ -60,6 +63,12 @@ class QuestViewModel(
 
     init {
         loadQuests()
+    }
+
+    fun attachLocalCache(context: Context) {
+        if (localCache != null) return
+        localCache = QuestLocalCache(context)
+        refresh()
     }
 
     fun refresh() {
@@ -195,7 +204,16 @@ class QuestViewModel(
                                 firestoreQuestRepository.getQuestStates(uid)
                                     .filter { it.date == today }
                             }
-                        }.getOrDefault(emptyList())
+                        }.onSuccess { states ->
+                            localCache?.saveQuestStates(uid, states)
+                        }.getOrDefault(emptyList()).let { remoteStates ->
+                            mergeQuestStates(
+                                remoteStates,
+                                localCache?.loadQuestStates(uid)
+                                    ?.filter { it.date == today }
+                                    .orEmpty()
+                            )
+                        }
                     }
                     val feedbackDeferred = async {
                         runCatching {
@@ -210,13 +228,19 @@ class QuestViewModel(
                             withTimeout(FIRESTORE_TIMEOUT_MS) {
                                 userRepository.getUser(uid)
                             }
+                        }.onSuccess { user ->
+                            user?.progress?.let { localCache?.saveUserProgress(uid, it) }
                         }.getOrNull()
                     }
                     Triple(statesDeferred.await(), feedbackDeferred.await(), userDeferred.await())
                 }
 
                 feedbackByQuestId = feedback
-                userProgress = user?.progress ?: UserProgress()
+                userProgress = preferredProgress(
+                    remoteProgress = user?.progress,
+                    cachedProgress = localCache?.loadUserProgress(uid),
+                    currentProgress = userProgress
+                )
                 quests = loadedQuests.withStates(todayStates)
                 dailyQuestIds = todayStates
                     .filter { it.isDailyAssigned }
@@ -224,8 +248,10 @@ class QuestViewModel(
                     .toSet()
                     .ifEmpty { loadedQuests.take(dailyQuestLimit).map { it.id }.toSet() }
                 dataMode = QuestDataMode.Firestore
-                withTimeout(FIRESTORE_TIMEOUT_MS) {
-                    ensureDailyAssignments(uid)
+                runCatching {
+                    withTimeout(FIRESTORE_TIMEOUT_MS) {
+                        ensureDailyAssignments(uid)
+                    }
                 }
             }.onFailure { error ->
                 loadDemoQuests()
@@ -261,6 +287,7 @@ class QuestViewModel(
             return
         }
         val questState = quest.toQuestState(status)
+        localCache?.saveQuestState(uid, questState)
 
         viewModelScope.launch {
             if (status == QuestStatus.Completed && previousStatus != QuestStatus.Completed) {
@@ -279,7 +306,11 @@ class QuestViewModel(
             val quest = questById(questId) ?: return@forEach
             val existingStatus = quest.status
             if (existingStatus == QuestStatus.Available) {
-                firestoreQuestRepository.saveQuestState(uid, quest.toQuestState(existingStatus))
+                val state = quest.toQuestState(existingStatus)
+                localCache?.saveQuestState(uid, state)
+                runCatching {
+                    firestoreQuestRepository.saveQuestState(uid, state)
+                }
             }
         }
     }
@@ -308,6 +339,7 @@ class QuestViewModel(
             lastQuestCompletionDate = today
         )
         userProgress = updatedProgress
+        localCache?.saveUserProgress(uid, updatedProgress)
         runCatching {
             withTimeout(FIRESTORE_TIMEOUT_MS) {
                 if (user == null) {
@@ -381,6 +413,30 @@ private val QuestStatus.sortOrder: Int
         QuestStatus.Available -> 1
         QuestStatus.Completed -> 2
         QuestStatus.Skipped -> 3
+    }
+
+private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<QuestState>): List<QuestState> =
+    (remoteStates + cachedStates)
+        .groupBy { it.questStateId }
+        .map { (_, versions) -> versions.maxBy { it.status.persistenceRank } }
+
+private fun preferredProgress(
+    remoteProgress: UserProgress?,
+    cachedProgress: UserProgress?,
+    currentProgress: UserProgress
+): UserProgress =
+    listOfNotNull(remoteProgress, cachedProgress, currentProgress)
+        .maxWith(
+            compareBy<UserProgress> { it.completedQuestCount }
+                .thenBy { it.currentStreak }
+        )
+
+private val QuestStatus.persistenceRank: Int
+    get() = when (this) {
+        QuestStatus.Available -> 0
+        QuestStatus.Active -> 1
+        QuestStatus.Skipped -> 2
+        QuestStatus.Completed -> 3
     }
 
 private fun Throwable.toQuestDataMessage(): String {

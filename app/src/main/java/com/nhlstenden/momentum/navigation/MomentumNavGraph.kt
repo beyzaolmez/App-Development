@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,8 +45,11 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
-    val questViewModel: QuestViewModel = viewModel()
     val context = LocalContext.current
+    val questViewModel: QuestViewModel = viewModel()
+    LaunchedEffect(questViewModel) {
+        questViewModel.attachLocalCache(context.applicationContext)
+    }
     val currentUser = FirebaseAuth.getInstance().currentUser
     val currentUserId = currentUser?.uid
     val startDestination = when {

@@ -372,12 +372,7 @@ class FirestoreQuestRepository(
             .collection("questStates")
             .document(questState.questStateId)
 
-        firestore.runTransaction { transaction ->
-            val existingStatus = transaction.get(document).getString("status").toQuestStatus()
-            if (!existingStatus.isMoreFinalThan(questState.status)) {
-                transaction.set(document, questState.toFirestoreMap())
-            }
-        }.await()
+        document.set(questState.toFirestoreMap()).await()
     }
 }
 
