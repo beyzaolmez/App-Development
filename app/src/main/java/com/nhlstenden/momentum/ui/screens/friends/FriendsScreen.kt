@@ -20,7 +20,9 @@ import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
+import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
+import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 data class Friend(val name: String, val subtitle: String, val streak: Int)
@@ -31,7 +33,7 @@ private val sampleFriends = listOf(
 )
 
 @Composable
-fun FriendsScreen() {
+fun FriendsScreen(onBack: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -40,6 +42,11 @@ fun FriendsScreen() {
     ) {
         Text("Friends", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         Text("Shared streaks", style = MaterialTheme.typography.headlineLarge)
+        MomentumStatusCard(
+            title = "Optional Sprint 3",
+            message = "Friends and shared streaks are sample UI only. They are kept here as a future concept, not as completed Sprint 1 functionality.",
+            variant = ChipVariant.Neutral
+        )
 
         MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -63,7 +70,8 @@ fun FriendsScreen() {
             FriendRow(friend)
         }
 
-        MomentumSecondaryButton("Share invite code", {}, Modifier.fillMaxWidth())
+        MomentumSecondaryButton("Share invite code", {}, Modifier.fillMaxWidth(), enabled = false)
+        MomentumQuietButton("Back to profile", onBack, Modifier.fillMaxWidth())
     }
 }
 

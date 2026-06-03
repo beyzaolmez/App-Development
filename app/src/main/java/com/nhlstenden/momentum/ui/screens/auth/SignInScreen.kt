@@ -28,7 +28,7 @@ fun SignInScreen(
     onBack: () -> Unit = {},
     authViewModel: AuthViewModel = viewModel()
 ) {
-    val state by authViewModel.loginState.collectAsState()
+    val uiState by authViewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -39,36 +39,36 @@ fun SignInScreen(
         AuthHeader(title = "Welcome back", subtitle = "Continue your quests at your own pace.", onBack = onBack)
 
         MomentumTextField(
-            value = state.email,
-            onValueChange = authViewModel::onLoginEmailChanged,
-            placeholder = "Student email",
+            value = uiState.email,
+            onValueChange = authViewModel::onEmailChanged,
+            placeholder = "Email",
             keyboardType = KeyboardType.Email,
-            errorText = state.emailError
+            errorText = uiState.emailError
         )
         MomentumTextField(
-            value = state.password,
-            onValueChange = authViewModel::onLoginPasswordChanged,
+            value = uiState.password,
+            onValueChange = authViewModel::onPasswordChanged,
             placeholder = "Password",
             isPassword = true,
-            errorText = state.passwordError
+            errorText = uiState.passwordError
         )
 
-        val loginError = state.loginError
-        if (loginError != null) {
-            Text(loginError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        val signInError = uiState.registrationError
+        if (signInError != null) {
+            Text(signInError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
         MomentumPrimaryButton(
-            text = if (state.isLoggingIn) "Signing in…" else "Sign in",
-            onClick = { authViewModel.login(onSignedIn) },
+            text = if (uiState.isRegistering) "Signing in..." else "Sign in",
+            onClick = { authViewModel.signIn(onSignedIn) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !state.isLoggingIn
+            enabled = !uiState.isRegistering
         )
         MomentumQuietButton(
             text = "Forgot password",
             onClick = onForgot,
             modifier = Modifier.fillMaxWidth(),
-            enabled = !state.isLoggingIn
+            enabled = !uiState.isRegistering
         )
     }
 }

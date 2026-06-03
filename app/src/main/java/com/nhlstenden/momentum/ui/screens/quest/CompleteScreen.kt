@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.nhlstenden.momentum.data.StreakStore
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
@@ -24,14 +21,6 @@ fun CompleteScreen(
     onReflect: () -> Unit = {},
     onHome: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-
-    // Record the completion once when this screen first appears.
-    // LaunchedEffect(Unit) guarantees it runs exactly once per navigation to this screen.
-    LaunchedEffect(Unit) {
-        StreakStore.recordCompletion(context)
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()

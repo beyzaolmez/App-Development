@@ -83,7 +83,7 @@ val MomentumTypography = Typography(
         lineHeight = 18.sp,
         letterSpacing = 0.05.em
     ),
-    // Label Small — Lexend 12 / 500 (used for XP, difficulty, metadata)
+    // Label Small — Lexend 12 / 500 (used for difficulty and metadata)
     labelSmall = TextStyle(
         fontFamily = Lexend,
         fontWeight = FontWeight.Medium,

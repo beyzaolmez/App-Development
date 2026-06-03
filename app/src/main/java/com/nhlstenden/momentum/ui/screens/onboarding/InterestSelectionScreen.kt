@@ -26,25 +26,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.InterestsStore
+import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 import com.nhlstenden.momentum.ui.theme.PillShape
 
-// These labels are the canonical interest names — they must match
-// the quest category strings in HomeScreen so filtering works correctly.
-private val availableInterests = listOf(
-    "Academic", "Social", "Personal",
-    "Outdoors", "Creative", "Focus",
-    "Wellness", "Food", "Reflection"
-)
+private val availableInterests = QuestCategory.entries.map { it.label }
 
 @Composable
 fun InterestSelectionScreen(
+    userId: String? = null,
     onContinue: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    // Pre-load any previously saved interests so the screen works as an editor too
-    var selected by remember { mutableStateOf(InterestsStore.load(context)) }
+    var selected by remember(userId) { mutableStateOf(InterestsStore.load(context, userId)) }
 
     Column(
         modifier = Modifier
@@ -52,43 +47,43 @@ fun InterestSelectionScreen(
             .padding(horizontal = 24.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Header
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "What are you into?",
                 style = MaterialTheme.typography.headlineLarge
             )
             Text(
-                text = "Pick as many as you like — your quests will match.",
+                text = "Pick at least one. Your daily quests will prefer these categories.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        // Interest chip grid
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+            columns = GridCells.Fixed(2),
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(availableInterests) { interest ->
-                val isSelected = interest in selected
                 InterestChip(
                     label = interest,
-                    selected = isSelected,
+                    selected = interest in selected,
                     onClick = {
-                        selected = if (isSelected) selected - interest else selected + interest
+                        selected = if (interest in selected) {
+                            selected - interest
+                        } else {
+                            selected + interest
+                        }
                     }
                 )
             }
         }
 
-        // Continue — disabled until at least one interest is chosen
         MomentumPrimaryButton(
             text = "Continue",
             onClick = {
-                InterestsStore.save(context, selected)
+                InterestsStore.save(context, userId, selected)
                 onContinue()
             },
             modifier = Modifier.fillMaxWidth(),
@@ -97,27 +92,27 @@ fun InterestSelectionScreen(
     }
 }
 
-// Private toggle chip — selected state uses primary colour, unselected is subtle.
 @Composable
 private fun InterestChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val containerColor = if (selected)
+    val containerColor = if (selected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-    else
+    } else {
         MaterialTheme.colorScheme.surface
-
-    val borderColor = if (selected)
+    }
+    val borderColor = if (selected) {
         MaterialTheme.colorScheme.primary
-    else
+    } else {
         MaterialTheme.colorScheme.outlineVariant
-
-    val textColor = if (selected)
+    }
+    val textColor = if (selected) {
         MaterialTheme.colorScheme.primary
-    else
+    } else {
         MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Box(
         modifier = Modifier
@@ -125,7 +120,7 @@ private fun InterestChip(
             .background(containerColor, PillShape)
             .border(1.dp, borderColor, PillShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(

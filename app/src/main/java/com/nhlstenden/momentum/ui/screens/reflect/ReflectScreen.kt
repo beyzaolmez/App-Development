@@ -23,6 +23,7 @@ import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
+import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
@@ -37,6 +38,11 @@ fun ReflectScreen(onSave: () -> Unit = {}) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Reflection", style = MaterialTheme.typography.headlineLarge)
+        MomentumStatusCard(
+            title = "Sprint 2 placeholder",
+            message = "Reflection notes are not saved yet. This screen only previews the planned quest reflection flow.",
+            variant = ChipVariant.Reward
+        )
 
         MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -66,7 +72,7 @@ fun ReflectScreen(onSave: () -> Unit = {}) {
             }
         }
 
-        MomentumPrimaryButton("Save reflection", onSave, Modifier.fillMaxWidth())
+        MomentumPrimaryButton("Preview save", onSave, Modifier.fillMaxWidth(), enabled = false)
     }
 }
 

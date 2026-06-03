@@ -25,6 +25,7 @@ import com.nhlstenden.momentum.viewmodel.AuthViewModel
 fun SignUpScreen(
     onCreated: () -> Unit = {},
     onHaveAccount: () -> Unit = {},
+    onSkipRegistration: () -> Unit = {},
     onBack: () -> Unit = {},
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -73,6 +74,12 @@ fun SignUpScreen(
         MomentumQuietButton(
             text = "I already have an account",
             onClick = onHaveAccount,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !uiState.isRegistering
+        )
+        MomentumQuietButton(
+            text = "Continue without account",
+            onClick = onSkipRegistration,
             modifier = Modifier.fillMaxWidth(),
             enabled = !uiState.isRegistering
         )

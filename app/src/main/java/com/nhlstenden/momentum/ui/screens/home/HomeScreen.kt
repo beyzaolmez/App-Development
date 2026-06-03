@@ -1,115 +1,155 @@
 package com.nhlstenden.momentum.ui.screens.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.nhlstenden.momentum.data.InterestsStore
-import com.nhlstenden.momentum.data.StreakStore
-import com.nhlstenden.momentum.notification.NotificationHelper
-import com.nhlstenden.momentum.ui.components.MomentumChip
+import com.nhlstenden.momentum.data.model.Quest
+import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.ui.components.ChipVariant
+import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.QuestCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
-
-enum class QuestStatus { Active, Skipped, Completed, SavedForLater }
-
-data class Quest(
-    val id: String,
-    val title: String,
-    val description: String,
-    val category: String,
-    val xp: Int,
-    val difficulty: String,
-    val status: QuestStatus = QuestStatus.Active
-)
-
-// Brandbook + minimal-UI acceptance criteria: max 1–3 active quests on Home.
-val sampleQuests = listOf(
-    Quest("q1", "Read Chapter 4", "Finish the History 101 reading before tomorrow's seminar.", "Academic", 150, "Medium"),
-    Quest("q2", "15-minute mindful reset", "A short grounding quest between classes.", "Personal", 80, "Easy"),
-    Quest("q3", "Message one friend", "Send one low-pressure check-in to someone you trust.", "Social", 60, "Easy")
-)
+import com.nhlstenden.momentum.viewmodel.QuestDataMode
+import com.nhlstenden.momentum.viewmodel.QuestViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
-    displayName: String = "",
-    quests: List<Quest> = sampleQuests,
+    quests: List<Quest>,
+    isLoading: Boolean,
+    greetingName: String,
+    dataMode: QuestDataMode,
+    errorMessage: String?,
+    selectedStatus: QuestStatus?,
+    activeQuestCount: Int,
+    completedQuestCount: Int,
+    dailyQuestLimit: Int,
+    onStatusSelected: (QuestStatus?) -> Unit,
+    onStartQuest: (String) -> Unit,
+    onSkipQuest: (String) -> Unit,
     onQuestClick: (String) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val savedInterests = remember { InterestsStore.load(context) }
-    val streak = remember { StreakStore.getStreak(context) }
-    // Show all quests when no interests have been saved yet (e.g. first launch / sign-in flow)
-    val displayedQuests = if (savedInterests.isEmpty()) quests.filter { it.status == QuestStatus.Active }
-                          else quests.filter { it.status == QuestStatus.Active && it.category in savedInterests }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { HomeHeader(streak = streak, displayName = displayName) }
+        item { HomeHeader(greetingName) }
         item {
             Text(
                 "Your side quests",
                 style = MaterialTheme.typography.headlineMedium
             )
         }
-        items(displayedQuests, key = { it.id }) { quest ->
+        item {
+            Text(
+                "$dailyQuestLimit daily quests · $activeQuestCount active · $completedQuestCount completed",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (errorMessage != null) {
+            item {
+                Text(
+                    errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        item {
+            QuestStatusFilters(
+                selectedStatus = selectedStatus,
+                onStatusSelected = onStatusSelected
+            )
+        }
+        if (isLoading) {
+            item {
+                Text(
+                    "Loading quests...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        items(quests, key = { it.id }) { quest ->
             QuestCard(
                 title = quest.title,
                 description = quest.description,
-                category = quest.category,
-                xp = quest.xp,
-                difficulty = quest.difficulty,
+                category = quest.category.label,
+                difficulty = "${quest.difficulty.label} · ${quest.estimatedMinutes} min",
+                status = quest.status.label,
+                statusVariant = quest.status.chipVariant(),
+                actionLabel = if (quest.status == QuestStatus.Available) "Start quest" else null,
+                onActionClick = { onStartQuest(quest.id) },
+                secondaryActionLabel = if (quest.status == QuestStatus.Available) "Not today" else null,
+                onSecondaryActionClick = { onSkipQuest(quest.id) },
                 onClick = { onQuestClick(quest.id) }
             )
-        }
-        item {
-            Button(
-                onClick = {
-                    NotificationHelper.showQuestNotification(
-                        context = context,
-                        questTitle = quests.firstOrNull()?.title ?: "Your quest awaits"
-                    )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Test notification")
-            }
         }
     }
 }
 
 @Composable
-private fun HomeHeader(streak: Int = 0, displayName: String = "") {
+private fun QuestStatusFilters(
+    selectedStatus: QuestStatus?,
+    onStatusSelected: (QuestStatus?) -> Unit
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        item {
+            MomentumChip(
+                text = "All",
+                variant = if (selectedStatus == null) ChipVariant.Skills else ChipVariant.Neutral,
+                modifier = Modifier.clickable { onStatusSelected(null) }
+            )
+        }
+        items(QuestStatus.entries.toList()) { status ->
+            MomentumChip(
+                text = status.label,
+                variant = if (selectedStatus == status) ChipVariant.Skills else ChipVariant.Neutral,
+                modifier = Modifier.clickable { onStatusSelected(status) }
+            )
+        }
+    }
+}
+
+private fun QuestStatus.chipVariant(): ChipVariant = when (this) {
+    QuestStatus.Available -> ChipVariant.Category
+    QuestStatus.Active -> ChipVariant.Status
+    QuestStatus.Completed -> ChipVariant.Reward
+    QuestStatus.Skipped -> ChipVariant.Neutral
+}
+
+@Composable
+private fun HomeHeader(greetingName: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            "Thursday",
+            currentWeekday(),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
-        val greeting = if (displayName.isNotBlank()) "Hi ${displayName.substringBefore(" ")}" else "Hi there"
-        Text(greeting, style = MaterialTheme.typography.headlineLarge)
-        val streakLabel = if (streak > 0) "$streak day streak" else "Start your streak"
-        val streakVariant = if (streak > 0) ChipVariant.Skills else ChipVariant.Neutral
+        Text("Hi $greetingName", style = MaterialTheme.typography.headlineLarge)
         MomentumChip(
-            text = streakLabel,
-            variant = streakVariant,
+            text = "Gentle day",
+            variant = ChipVariant.Skills,
             modifier = Modifier.padding(top = 8.dp)
         )
     }
@@ -118,5 +158,24 @@ private fun HomeHeader(streak: Int = 0, displayName: String = "") {
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun HomeScreenPreview() {
-    MomentumTheme { HomeScreen() }
+    val questViewModel = QuestViewModel()
+    MomentumTheme {
+        HomeScreen(
+            quests = questViewModel.visibleQuests(),
+            isLoading = questViewModel.isLoading,
+            greetingName = "Testing user",
+            dataMode = questViewModel.dataMode,
+            errorMessage = questViewModel.errorMessage,
+            selectedStatus = questViewModel.selectedStatus,
+            activeQuestCount = questViewModel.activeQuestCount(),
+            completedQuestCount = questViewModel.completedQuestCount(),
+            dailyQuestLimit = questViewModel.dailyQuestLimit(),
+            onStatusSelected = questViewModel::selectStatus,
+            onStartQuest = questViewModel::startQuest,
+            onSkipQuest = questViewModel::skipQuest
+        )
+    }
 }
+
+private fun currentWeekday(): String =
+    SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())

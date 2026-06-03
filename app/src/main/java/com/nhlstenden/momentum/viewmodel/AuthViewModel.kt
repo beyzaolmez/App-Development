@@ -3,6 +3,7 @@ package com.nhlstenden.momentum.viewmodel
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuthException
 import com.nhlstenden.momentum.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,46 +16,6 @@ class AuthViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
-
-    private val _loginState = MutableStateFlow(LoginUiState())
-    val loginState: StateFlow<LoginUiState> = _loginState.asStateFlow()
-
-    fun onLoginEmailChanged(email: String) {
-        _loginState.update { it.copy(email = email, emailError = null, loginError = null) }
-    }
-
-    fun onLoginPasswordChanged(password: String) {
-        _loginState.update { it.copy(password = password, passwordError = null, loginError = null) }
-    }
-
-    fun login(onSuccess: () -> Unit) {
-        val state = _loginState.value
-        val emailError = validateEmail(state.email)
-        val passwordError = if (state.password.isEmpty()) "Password is required." else null
-
-        if (emailError != null || passwordError != null) {
-            _loginState.update { it.copy(emailError = emailError, passwordError = passwordError) }
-            return
-        }
-
-        viewModelScope.launch {
-            _loginState.update { it.copy(isLoggingIn = true, loginError = null) }
-            runCatching {
-                authRepository.login(state.email.trim(), state.password)
-            }.onSuccess {
-                _loginState.update { it.copy(isLoggingIn = false) }
-                onSuccess()
-            }.onFailure { error ->
-                val message = when {
-                    error.message?.contains("no user record", ignoreCase = true) == true -> "No account found with this email."
-                    error.message?.contains("password is invalid", ignoreCase = true) == true -> "Incorrect password."
-                    error.message?.contains("badly formatted", ignoreCase = true) == true -> "Enter a valid email address."
-                    else -> error.localizedMessage ?: "Sign in failed. Please try again."
-                }
-                _loginState.update { it.copy(isLoggingIn = false, loginError = message) }
-            }
-        }
-    }
 
     fun onNameChanged(name: String) {
         _uiState.update { it.copy(name = name, nameError = null, registrationError = null) }
@@ -88,7 +49,11 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isRegistering = true, registrationError = null) }
             runCatching {
-                authRepository.register(currentState.name.trim(), currentState.email.trim(), currentState.password)
+                authRepository.register(
+                    name = currentState.name,
+                    email = currentState.email.trim(),
+                    password = currentState.password
+                )
             }.onSuccess {
                 _uiState.update { it.copy(isRegistering = false) }
                 onSuccess()
@@ -96,7 +61,40 @@ class AuthViewModel(
                 _uiState.update {
                     it.copy(
                         isRegistering = false,
-                        registrationError = error.localizedMessage ?: "Registration failed. Please try again."
+                        registrationError = error.toAuthMessage("Registration")
+                    )
+                }
+            }
+        }
+    }
+
+    fun signIn(onSuccess: () -> Unit) {
+        val currentState = _uiState.value
+        val emailError = validateEmail(currentState.email)
+        val passwordError = validatePassword(currentState.password)
+
+        if (emailError != null || passwordError != null) {
+            _uiState.update {
+                it.copy(
+                    emailError = emailError,
+                    passwordError = passwordError
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRegistering = true, registrationError = null) }
+            runCatching {
+                authRepository.signIn(currentState.email.trim(), currentState.password)
+            }.onSuccess {
+                _uiState.update { it.copy(isRegistering = false) }
+                onSuccess()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isRegistering = false,
+                        registrationError = error.toAuthMessage("Sign in")
                     )
                 }
             }
@@ -130,11 +128,21 @@ data class AuthUiState(
     val isRegistering: Boolean = false
 )
 
-data class LoginUiState(
-    val email: String = "",
-    val password: String = "",
-    val emailError: String? = null,
-    val passwordError: String? = null,
-    val loginError: String? = null,
-    val isLoggingIn: Boolean = false
-)
+private fun Throwable.toAuthMessage(action: String): String {
+    val firebaseCode = (this as? FirebaseAuthException)?.errorCode.orEmpty()
+    val rawMessage = localizedMessage.orEmpty()
+    val diagnosticText = "$firebaseCode $rawMessage".uppercase()
+
+    return when {
+        "CONFIGURATION_NOT_FOUND" in diagnosticText ->
+            "Accounts are not enabled for this test build yet. Continue without an account for now."
+        "EMAIL_ALREADY_IN_USE" in diagnosticText ->
+            "This email already has an account. Try signing in instead."
+        "INVALID_LOGIN_CREDENTIALS" in diagnosticText || "INVALID_CREDENTIAL" in diagnosticText ->
+            "Email or password is incorrect."
+        "NETWORK" in diagnosticText ->
+            "Network error. Check your connection and try again."
+        rawMessage.isNotBlank() -> rawMessage
+        else -> "$action failed. Please try again."
+    }
+}
