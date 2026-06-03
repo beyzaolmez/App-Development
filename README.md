@@ -4,17 +4,25 @@ A gentle productivity app for students that turns daily tasks into manageable si
 
 ## Features
 
-### Authentication
-- **Registration** — Create account with email, password, and name
+### Authentication & Sessions
+- **Registration** — Create account with email, password, and display name
 - **Login** — Sign in with email and password
+- **Session Persistence** — Firebase session survives app restarts; returning users land directly on Home
+- **Sign Out** — Fully clears Firebase session token
 - **Firebase Auth** — Secure authentication with error handling and validation
 - **Input Validation** — Real-time validation with user-friendly error messages
 
+### Onboarding & Personalisation
+- **3-Page Onboarding** — Swipeable intro shown on first launch (skippable)
+- **Interest Selection** — New users pick quest categories after sign-up; stored locally via SharedPreferences
+- **Quest Filtering** — Home screen shows only quests matching saved interests; falls back to all quests if none saved
+
 ### Quest System
 - **Daily Quests** — 1-3 curated quests across Academic, Social, and Personal categories
+- **Quest Status Tracking** — Active, Skipped, Completed, SavedForLater states
 - **Quest Cards** — Clean card UI with category chips, difficulty, and XP rewards
-- **Quest Detail** — Full quest view with steps and completion options
-- **Completion Flow** — Mark quests done, add optional reflections
+- **Quest Detail** — Full quest view with skip and save-for-later options
+- **Completion Flow** — Mark quests done, records streak, add optional reflection
 
 ### Navigation & UI
 - **Bottom Navigation** — Home, Reflect, Progress, Friends, Profile tabs
@@ -22,10 +30,11 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Dark Theme** — Brand-consistent dark-first design (#0B1326 background)
 - **Custom Components** — Momentum-themed buttons, cards, chips, and text fields
 
-### Progress & Social
-- **Soft Streaks** — Non-punitive streak tracking
-- **Category Balance** — Visual breakdown of quest categories
-- **Friend Streaks** — Share progress with chosen friends
+### Progress & Notifications
+- **Soft Streaks** — Consecutive-day streak tracked in SharedPreferences; resets on missed day
+- **Live Streak Display** — Streak count shown on Home header chip and Progress stats card
+- **Category Balance** — Visual breakdown of quest categories completed
+- **Push Notifications** — Local quest reminder notifications with runtime permission request (Android 13+)
 
 ## Tech Stack
 
@@ -42,12 +51,18 @@ A gentle productivity app for students that turns daily tasks into manageable si
 
 ```
 app/src/main/java/com/nhlstenden/momentum/
+├── MomentumApplication.kt             # App entry point; registers notification channel
+├── MainActivity.kt                    # Single activity; requests notification permission
 ├── data/
-│   └── repository/
-│       └── AuthRepository.kt          # Firebase Auth operations
+│   ├── repository/
+│   │   └── AuthRepository.kt          # Firebase Auth (register, login, signOut, currentUser)
+│   ├── InterestsStore.kt              # SharedPreferences — selected interest categories
+│   └── StreakStore.kt                 # SharedPreferences — consecutive-day streak logic
 ├── navigation/
-│   ├── MomentumDestinations.kt        # Route constants
-│   └── MomentumNavGraph.kt            # Navigation graph
+│   ├── MomentumDestinations.kt        # Route constants + bottom tab definitions
+│   └── MomentumNavGraph.kt            # Nav graph; session-aware start destination
+├── notification/
+│   └── NotificationHelper.kt          # Local push notifications (channel + send)
 ├── ui/
 │   ├── components/
 │   │   ├── Buttons.kt                 # Primary, secondary, quiet buttons
@@ -62,19 +77,22 @@ app/src/main/java/com/nhlstenden/momentum/
 │   │   │   ├── SignUpScreen.kt        # Registration with validation
 │   │   │   ├── ForgotPasswordScreen.kt # Password reset
 │   │   │   └── AuthHeader.kt          # Shared auth header
+│   │   ├── onboarding/
+│   │   │   ├── OnboardingScreen.kt    # 3-page swipeable first-run intro
+│   │   │   └── InterestSelectionScreen.kt # Category chip picker after sign-up
 │   │   ├── home/
-│   │   │   └── HomeScreen.kt          # Daily quests dashboard
+│   │   │   └── HomeScreen.kt          # Daily quests filtered by interests + streak
 │   │   ├── quest/
-│   │   │   ├── QuestDetailScreen.kt   # Quest detail view
-│   │   │   └── CompleteScreen.kt      # Quest completion celebration
+│   │   │   ├── QuestDetailScreen.kt   # Quest detail with skip / save-for-later
+│   │   │   └── CompleteScreen.kt      # Completion screen; records streak
 │   │   ├── reflect/
 │   │   │   └── ReflectScreen.kt       # Optional reflection notes
 │   │   ├── progress/
-│   │   │   └── ProgressScreen.kt      # Stats and category balance
+│   │   │   └── ProgressScreen.kt      # Streak stat + category balance bars
 │   │   ├── friends/
 │   │   │   └── FriendsScreen.kt       # Friend streaks and invites
 │   │   └── profile/
-│   │       └── ProfileScreen.kt       # User settings and sign out
+│   │       └── ProfileScreen.kt       # Real user name/email, interests, sign out
 │   └── theme/
 │       ├── Color.kt                   # Brand colors
 │       ├── Theme.kt                   # MomentumTheme
@@ -82,7 +100,7 @@ app/src/main/java/com/nhlstenden/momentum/
 │       ├── Shape.kt                   # Corner radius definitions
 │       └── Spacing.kt                 # 8-point grid spacing
 └── viewmodel/
-    └── AuthViewModel.kt               # Auth state and validation logic
+    └── AuthViewModel.kt               # Auth state, validation, login/register logic
 ```
 
 ## Getting Started
