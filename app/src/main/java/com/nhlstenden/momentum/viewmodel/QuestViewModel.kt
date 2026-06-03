@@ -41,6 +41,7 @@ class QuestViewModel(
 
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
     private var feedbackByQuestId by mutableStateOf<Map<String, QuestFeedbackType>>(emptyMap())
+    private var feedbackScoreByCategory by mutableStateOf<Map<QuestCategory, Int>>(emptyMap())
     private var userProgress by mutableStateOf(UserProgress())
 
     var isLoading by mutableStateOf(true)
@@ -83,7 +84,8 @@ class QuestViewModel(
         }
 
         return visibleCandidates.sortedWith(
-            compareBy<Quest> { it.status.sortOrder }
+            compareByDescending<Quest> { it.recommendationScore() }
+                .thenBy { it.status.sortOrder }
                 .thenBy { it.category.label }
                 .thenBy { it.title }
         )
@@ -158,9 +160,16 @@ class QuestViewModel(
     }
 
     fun saveFeedback(id: String, feedbackType: QuestFeedbackType) {
-        feedbackByQuestId = feedbackByQuestId + (id to feedbackType)
-        val uid = auth.currentUser?.uid ?: return
         val quest = questById(id) ?: return
+        val previousFeedbackType = feedbackByQuestId[id]
+        feedbackByQuestId = feedbackByQuestId + (id to feedbackType)
+        feedbackScoreByCategory = feedbackScoreByCategory.updatedWith(
+            category = quest.category,
+            previousFeedbackType = previousFeedbackType,
+            newFeedbackType = feedbackType
+        )
+        refreshDailyAssignments()
+        val uid = auth.currentUser?.uid ?: return
 
         viewModelScope.launch {
             runCatching {
@@ -204,20 +213,18 @@ class QuestViewModel(
                     firestoreQuestRepository.getQuestStates(uid)
                         .filter { it.date == today }
                 }
-                feedbackByQuestId = withTimeout(FIRESTORE_TIMEOUT_MS) {
+                val savedFeedback = withTimeout(FIRESTORE_TIMEOUT_MS) {
                     feedbackRepository.getFeedback(uid)
-                        .associate { it.questId to it.feedbackType }
                 }
+                feedbackByQuestId = savedFeedback.associate { it.questId to it.feedbackType }
+                feedbackScoreByCategory = savedFeedback.toCategoryScores()
+                refreshDailyAssignments(loadedQuests)
                 userProgress = withTimeout(FIRESTORE_TIMEOUT_MS) {
                     userRepository.getUser(uid)?.progress ?: UserProgress()
                 }
 
                 quests = loadedQuests.withStates(todayStates)
-                dailyQuestIds = todayStates
-                    .filter { it.isDailyAssigned }
-                    .map { it.questId }
-                    .toSet()
-                    .ifEmpty { loadedQuests.take(dailyQuestLimit).map { it.id }.toSet() }
+                refreshDailyAssignments()
                 dataMode = if (remoteQuests.isEmpty()) QuestDataMode.Demo else QuestDataMode.Firestore
                 withTimeout(FIRESTORE_TIMEOUT_MS) {
                     ensureDailyAssignments(uid)
@@ -234,7 +241,7 @@ class QuestViewModel(
     private fun loadDemoQuests() {
         val demoQuests = fallbackQuestRepository.getQuests()
         quests = demoQuests
-        dailyQuestIds = demoQuests.take(dailyQuestLimit).map { it.id }.toSet()
+        refreshDailyAssignments(demoQuests)
         dataMode = QuestDataMode.Demo
         userProgress = UserProgress(currentStreak = if (completedQuestCount() > 0) 1 else 0)
     }
@@ -353,6 +360,26 @@ class QuestViewModel(
             quest.status != QuestStatus.Available || quest.id in dailyQuestIds
         }
     }
+
+    private fun List<Quest>.prioritizedByFeedback(): List<Quest> =
+        sortedWith(
+            compareByDescending<Quest> { it.recommendationScore() }
+                .thenBy { it.status.sortOrder }
+                .thenBy { it.category.label }
+                .thenBy { it.title }
+        )
+
+    private fun Quest.recommendationScore(): Int =
+        ((feedbackByQuestId[id]?.preferenceScore ?: 0) * DIRECT_FEEDBACK_WEIGHT) +
+            (feedbackScoreByCategory[category] ?: 0)
+
+    private fun refreshDailyAssignments(sourceQuests: List<Quest> = quests) {
+        dailyQuestIds = sourceQuests
+            .prioritizedByFeedback()
+            .take(dailyQuestLimit)
+            .map { it.id }
+            .toSet()
+    }
 }
 
 enum class QuestDataMode {
@@ -361,6 +388,7 @@ enum class QuestDataMode {
 }
 
 private const val FIRESTORE_TIMEOUT_MS = 8_000L
+private const val DIRECT_FEEDBACK_WEIGHT = 100
 
 private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
@@ -386,3 +414,32 @@ private fun Throwable.toQuestDataMessage(): String {
         else -> localizedMessage ?: "Could not sync quests right now. Showing demo quests."
     }
 }
+
+private fun List<QuestFeedback>.toCategoryScores(): Map<QuestCategory, Int> =
+    groupBy { it.category }
+        .mapValues { (_, feedback) -> feedback.sumOf { it.feedbackType.preferenceScore } }
+        .filterValues { it != 0 }
+
+private fun Map<QuestCategory, Int>.updatedWith(
+    category: QuestCategory,
+    previousFeedbackType: QuestFeedbackType?,
+    newFeedbackType: QuestFeedbackType
+): Map<QuestCategory, Int> {
+    val updatedScore = (this[category] ?: 0) -
+        (previousFeedbackType?.preferenceScore ?: 0) +
+        newFeedbackType.preferenceScore
+
+    return if (updatedScore == 0) {
+        this - category
+    } else {
+        this + (category to updatedScore)
+    }
+}
+
+private val QuestFeedbackType.preferenceScore: Int
+    get() = when (this) {
+        QuestFeedbackType.Like -> 2
+        QuestFeedbackType.MoreLikeThis -> 1
+        QuestFeedbackType.NotForMe -> -1
+        QuestFeedbackType.Dislike -> -2
+    }
