@@ -31,7 +31,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -55,6 +54,7 @@ class QuestViewModel(
     private var feedbackByQuestId by mutableStateOf<Map<String, QuestFeedbackType>>(emptyMap())
     private var feedbackScoreByCategory by mutableStateOf<Map<QuestCategory, Int>>(emptyMap())
     private var userProgress by mutableStateOf(UserProgress())
+    private var reflectedQuestIds by mutableStateOf<Set<String>>(emptySet())
 
     var isLoading by mutableStateOf(true)
         private set
@@ -69,6 +69,9 @@ class QuestViewModel(
         private set
 
     var journalErrorByQuestId by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
+
+    var recentReflections by mutableStateOf<List<JournalEntry>>(emptyList())
         private set
 
     private var quests by mutableStateOf<List<Quest>>(emptyList())
@@ -139,7 +142,12 @@ class QuestViewModel(
 
     fun questById(id: String): Quest? = quests.firstOrNull { it.id == id }
 
+    fun questTitleForReflection(questId: String): String =
+        questById(questId)?.title ?: "Quest reflection"
+
     fun reflectionPromptForQuest(id: String): String = questById(id)?.reflectionPrompt() ?: DEFAULT_REFLECTION_PROMPT
+
+    fun hasReflectionForQuest(id: String): Boolean = id in reflectedQuestIds
 
     fun feedbackForQuest(id: String): QuestFeedbackType? = feedbackByQuestId[id]
 
@@ -170,21 +178,28 @@ class QuestViewModel(
         val trimmedNote = note.trim()
         val reflectionPrompt = quest.reflectionPrompt()
 
+        if (id in reflectedQuestIds) {
+            journalErrorByQuestId = journalErrorByQuestId + (id to "Reflection already saved for this quest.")
+            return false
+        }
+
         if (trimmedNote.isBlank()) {
             journalErrorByQuestId = journalErrorByQuestId + (id to "Write a short reflection before saving.")
             return false
         }
 
         journalErrorByQuestId = journalErrorByQuestId - id
+        reflectedQuestIds = reflectedQuestIds + id
 
         val entry = JournalEntry(
-            journalEntryId = UUID.randomUUID().toString(),
+            journalEntryId = id,
             questId = id,
             promptChoice = promptChoice ?: reflectionPrompt,
             quickTake = quickTake,
             note = trimmedNote,
             createdAt = System.currentTimeMillis()
         )
+        recentReflections = listOf(entry) + recentReflections.filterNot { it.questId == id }
 
         saveReflectionThenComplete(id = id, entry = entry)
         return true
@@ -271,7 +286,7 @@ class QuestViewModel(
                     remoteQuests
                 }
 
-                val (todayStates, feedback, user) = coroutineScope {
+                val loadedData = coroutineScope {
                     val statesDeferred = async {
                         runCatching {
                             withTimeout(FIRESTORE_TIMEOUT_MS) {
@@ -296,6 +311,13 @@ class QuestViewModel(
                             }
                         }.getOrDefault(emptyList())
                     }
+                    val reflectionsDeferred = async {
+                        runCatching {
+                            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                                reflectionRepository.getRecentReflections(uid)
+                            }
+                        }.getOrDefault(emptyList())
+                    }
                     val userDeferred = async {
                         runCatching {
                             withTimeout(FIRESTORE_TIMEOUT_MS) {
@@ -305,17 +327,24 @@ class QuestViewModel(
                             user?.progress?.let { localCache?.saveUserProgress(uid, it) }
                         }.getOrNull()
                     }
-                    Triple(statesDeferred.await(), feedbackDeferred.await(), userDeferred.await())
+                    LoadedQuestData(
+                        todayStates = statesDeferred.await(),
+                        feedback = feedbackDeferred.await(),
+                        reflections = reflectionsDeferred.await(),
+                        user = userDeferred.await()
+                    )
                 }
 
-                feedbackByQuestId = feedback.associate { it.questId to it.feedbackType }
-                feedbackScoreByCategory = feedback.toCategoryScores()
+                feedbackByQuestId = loadedData.feedback.associate { it.questId to it.feedbackType }
+                feedbackScoreByCategory = loadedData.feedback.toCategoryScores()
+                recentReflections = loadedData.reflections
+                reflectedQuestIds = loadedData.reflections.map { it.questId }.toSet()
                 userProgress = preferredProgress(
-                    remoteProgress = user?.progress,
+                    remoteProgress = loadedData.user?.progress,
                     cachedProgress = localCache?.loadUserProgress(uid),
                     currentProgress = userProgress
                 )
-                quests = loadedQuests.withStates(todayStates)
+                quests = loadedQuests.withStates(loadedData.todayStates)
                 refreshDailyAssignments()
                 dataMode = QuestDataMode.Firestore
                 runCatching {
@@ -507,6 +536,13 @@ class QuestViewModel(
             .toSet()
     }
 }
+
+private data class LoadedQuestData(
+    val todayStates: List<QuestState>,
+    val feedback: List<QuestFeedback>,
+    val reflections: List<JournalEntry>,
+    val user: User?
+)
 
 enum class QuestDataMode {
     Firestore,

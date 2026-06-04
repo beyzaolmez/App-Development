@@ -150,7 +150,12 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
             }
-            composable(Routes.Reflect) { ReflectScreen() }
+            composable(Routes.Reflect) {
+                ReflectScreen(
+                    reflections = questViewModel.recentReflections,
+                    questTitleForReflection = questViewModel::questTitleForReflection
+                )
+            }
             composable(Routes.Progress) {
                 ProgressScreen(
                     completedQuestCount = questViewModel.completedDailyQuestCount(),
@@ -260,6 +265,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             ) { entry ->
                 val id = entry.arguments?.getString("id") ?: ""
                 CompleteScreen(
+                    hasReflection = questViewModel.hasReflectionForQuest(id),
                     onReflect = {
                         navController.navigate(Routes.questReflection(id))
                     },

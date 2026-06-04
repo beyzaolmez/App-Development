@@ -46,9 +46,7 @@ fun QuestReflectionScreen(
     onClose: () -> Unit = {},
     onSave: (note: String, promptChoice: String, quickTake: String?) -> Boolean = { _, _, _ -> true }
 ) {
-    val promptOptions = rememberPromptOptions(prompt)
-    val quickTakeOptions = listOf("Worth it", "Okay", "More like this", "Not for me")
-    var selectedPrompt by rememberSaveable(quest?.id) { mutableStateOf(promptOptions.first()) }
+    val quickTakeOptions = listOf("Great", "Good", "Okay", "Not for me")
     var selectedQuickTake by rememberSaveable(quest?.id) { mutableStateOf<String?>(null) }
     var note by rememberSaveable(quest?.id) { mutableStateOf("") }
 
@@ -115,15 +113,6 @@ fun QuestReflectionScreen(
             Column(it, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 MomentumChip("Quest reflection", variant = ChipVariant.Reward)
                 Text(prompt, style = MaterialTheme.typography.titleLarge)
-                promptOptions.forEach { option ->
-                    MomentumChip(
-                        text = option,
-                        variant = if (selectedPrompt == option) ChipVariant.Reward else ChipVariant.Neutral,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedPrompt = option }
-                    )
-                }
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
@@ -176,18 +165,12 @@ fun QuestReflectionScreen(
 
         MomentumPrimaryButton(
             "Save reflection",
-            { onSave(note, selectedPrompt, selectedQuickTake) },
+            { onSave(note, prompt, selectedQuickTake) },
             Modifier.fillMaxWidth()
         )
         MomentumQuietButton("Skip", onClose, Modifier.fillMaxWidth())
     }
 }
-
-private fun rememberPromptOptions(prompt: String): List<String> = listOf(
-    prompt,
-    "Something I could do better next time",
-    "Would try something else next time"
-)
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 760)
 @Composable

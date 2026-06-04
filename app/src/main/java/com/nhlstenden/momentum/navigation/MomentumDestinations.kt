@@ -41,7 +41,7 @@ data class BottomTab(
 
 val BottomTabs = listOf(
     BottomTab(Routes.Home, "Home", Icons.Outlined.Home),
-    BottomTab(Routes.Reflect, "Reflect", Icons.Outlined.SelfImprovement),
     BottomTab(Routes.Progress, "Progress", Icons.Outlined.EmojiEvents),
+    BottomTab(Routes.Reflect, "Reflect", Icons.Outlined.SelfImprovement),
     BottomTab(Routes.Profile, "Profile", Icons.Outlined.AccountCircle)
 )

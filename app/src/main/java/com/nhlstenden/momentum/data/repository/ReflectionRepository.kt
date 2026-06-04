@@ -16,7 +16,10 @@ class InMemoryReflectionRepository : ReflectionRepository {
         entriesByUser[uid].orEmpty().sortedByDescending { it.createdAt }
 
     override suspend fun saveReflection(uid: String, entry: JournalEntry) {
-        entriesByUser[uid] = entriesByUser[uid].orEmpty() + entry
+        entriesByUser[uid] = entriesByUser[uid]
+            .orEmpty()
+            .filterNot { it.questId == entry.questId }
+            .plus(entry)
     }
 }
 
