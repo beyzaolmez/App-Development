@@ -14,6 +14,8 @@ import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestFeedback
 import com.nhlstenden.momentum.data.model.QuestFeedbackRules
 import com.nhlstenden.momentum.data.model.QuestFeedbackType
+import com.nhlstenden.momentum.data.model.ProgressOverview
+import com.nhlstenden.momentum.data.model.ProgressOverviewCalculator
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.data.model.User
@@ -139,6 +141,13 @@ class QuestViewModel(
                 ?: return@mapNotNull null
             category to count
         }.toMap()
+
+    fun progressOverview(): ProgressOverview =
+        ProgressOverviewCalculator.build(
+            quests = quests,
+            progress = userProgress,
+            dailyQuestLimit = dailyQuestLimit
+        )
 
     fun questById(id: String): Quest? = quests.firstOrNull { it.id == id }
 
@@ -380,7 +389,17 @@ class QuestViewModel(
         val uid = auth.currentUser?.uid
         if (uid == null) {
             if (status == QuestStatus.Completed) {
-                userProgress = userProgress.copy(currentStreak = maxOf(userProgress.currentStreak, 1))
+                val categoryCounts = userProgress.categoryCounts.toMutableMap()
+                val categoryKey = quest.category.name
+                categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
+                userProgress = userProgress.copy(
+                    currentStreak = maxOf(userProgress.currentStreak, 1),
+                    completedQuestCount = userProgress.completedQuestCount + 1,
+                    categoryCounts = categoryCounts,
+                    lastQuestCompletionDate = today
+                )
+            } else if (status == QuestStatus.Skipped && previousStatus != QuestStatus.Skipped) {
+                userProgress = userProgress.copy(skippedQuestCount = userProgress.skippedQuestCount + 1)
             }
             return
         }
@@ -390,6 +409,8 @@ class QuestViewModel(
         viewModelScope.launch {
             if (status == QuestStatus.Completed && previousStatus != QuestStatus.Completed) {
                 updateUserProgress(uid, quest)
+            } else if (status == QuestStatus.Skipped && previousStatus != QuestStatus.Skipped) {
+                updateSkippedProgress(uid)
             }
             runCatching {
                 firestoreQuestRepository.saveQuestState(uid, questState)
@@ -461,6 +482,39 @@ class QuestViewModel(
             skippedQuestCount = currentProgress.skippedQuestCount,
             categoryCounts = categoryCounts,
             lastQuestCompletionDate = today
+        )
+        userProgress = updatedProgress
+        localCache?.saveUserProgress(uid, updatedProgress)
+        runCatching {
+            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                if (user == null) {
+                    val firebaseUser = auth.currentUser
+                    userRepository.saveUser(
+                        User(
+                            uid = uid,
+                            displayName = firebaseUser?.displayName.orEmpty(),
+                            email = firebaseUser?.email.orEmpty(),
+                            progress = updatedProgress
+                        )
+                    )
+                } else {
+                    userRepository.updateProgress(uid = uid, progress = updatedProgress)
+                }
+            }
+        }.onFailure {
+            errorMessage = "Progress updated locally, but could not sync to Firestore yet."
+        }
+    }
+
+    private suspend fun updateSkippedProgress(uid: String) {
+        val user = runCatching {
+            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                userRepository.getUser(uid)
+            }
+        }.getOrNull()
+        val currentProgress = user?.progress ?: userProgress
+        val updatedProgress = currentProgress.copy(
+            skippedQuestCount = currentProgress.skippedQuestCount + 1
         )
         userProgress = updatedProgress
         localCache?.saveUserProgress(uid, updatedProgress)

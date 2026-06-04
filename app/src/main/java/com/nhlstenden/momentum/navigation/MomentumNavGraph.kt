@@ -157,13 +157,7 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                 )
             }
             composable(Routes.Progress) {
-                ProgressScreen(
-                    completedQuestCount = questViewModel.completedDailyQuestCount(),
-                    totalQuestCount = questViewModel.totalDailyQuestCount(),
-                    totalCompletedQuestCount = questViewModel.totalCompletedQuestCount(),
-                    currentStreak = questViewModel.currentStreak(),
-                    completedCategoryCounts = questViewModel.completedCategoryCounts()
-                )
+                ProgressScreen(overview = questViewModel.progressOverview())
             }
             composable(Routes.Friends) {
                 FriendsScreen(onBack = { navController.popBackStack() })
