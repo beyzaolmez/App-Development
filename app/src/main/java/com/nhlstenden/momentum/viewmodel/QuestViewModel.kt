@@ -341,8 +341,7 @@ class QuestViewModel(
                 reflectedQuestIds = loadedData.reflections.map { it.questId }.toSet()
                 userProgress = preferredProgress(
                     remoteProgress = loadedData.user?.progress,
-                    cachedProgress = localCache?.loadUserProgress(uid),
-                    currentProgress = userProgress
+                    cachedProgress = localCache?.loadUserProgress(uid)
                 )
                 quests = loadedQuests.withStates(loadedData.todayStates)
                 refreshDailyAssignments()
@@ -577,10 +576,9 @@ private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<
 
 private fun preferredProgress(
     remoteProgress: UserProgress?,
-    cachedProgress: UserProgress?,
-    currentProgress: UserProgress
+    cachedProgress: UserProgress?
 ): UserProgress =
-    listOfNotNull(remoteProgress, cachedProgress, currentProgress)
+    listOfNotNull(remoteProgress, cachedProgress, UserProgress())
         .maxWith(
             compareBy<UserProgress> { it.completedQuestCount }
                 .thenBy { it.currentStreak }
