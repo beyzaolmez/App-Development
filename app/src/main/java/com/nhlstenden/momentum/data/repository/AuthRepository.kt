@@ -40,6 +40,9 @@ class AuthRepository(
 
         runCatching {
             withTimeout(5_000) {
+                val existingUser = userRepository.getUser(firebaseUser.uid)
+                if (existingUser != null) return@withTimeout
+
                 userRepository.saveUser(
                     User(
                         uid = firebaseUser.uid,

@@ -18,6 +18,7 @@ import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
 fun CompleteScreen(
+    hasReflection: Boolean = false,
     onReflect: () -> Unit = {},
     onHome: () -> Unit = {}
 ) {
@@ -35,13 +36,21 @@ fun CompleteScreen(
         )
         Text("That counts.", style = MaterialTheme.typography.headlineLarge)
         Text(
-            "Your streak was updated softly. You can stop here or write a quick note.",
+            if (hasReflection) {
+                "Your reflection was saved and your streak was updated softly."
+            } else {
+                "Your streak was updated softly. You can stop here or write a quick note."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.weight(1f))
-        MomentumPrimaryButton("Add a tiny reflection", onReflect, Modifier.fillMaxWidth())
-        MomentumSecondaryButton("Return home", onHome, Modifier.fillMaxWidth())
+        if (hasReflection) {
+            MomentumPrimaryButton("Return home", onHome, Modifier.fillMaxWidth())
+        } else {
+            MomentumPrimaryButton("Add a tiny reflection", onReflect, Modifier.fillMaxWidth())
+            MomentumSecondaryButton("Return home", onHome, Modifier.fillMaxWidth())
+        }
     }
 }
 

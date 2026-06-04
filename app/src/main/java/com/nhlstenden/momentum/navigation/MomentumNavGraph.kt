@@ -33,6 +33,7 @@ import com.nhlstenden.momentum.ui.screens.profile.ProfileScreen
 import com.nhlstenden.momentum.ui.screens.progress.ProgressScreen
 import com.nhlstenden.momentum.ui.screens.quest.CompleteScreen
 import com.nhlstenden.momentum.ui.screens.quest.QuestDetailScreen
+import com.nhlstenden.momentum.ui.screens.quest.QuestReflectionScreen
 import com.nhlstenden.momentum.ui.screens.reflect.ReflectScreen
 import com.nhlstenden.momentum.viewmodel.ProfileViewModel
 import com.nhlstenden.momentum.viewmodel.QuestViewModel
@@ -149,15 +150,14 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
             }
-            composable(Routes.Reflect) { ReflectScreen() }
-            composable(Routes.Progress) {
-                ProgressScreen(
-                    completedQuestCount = questViewModel.completedDailyQuestCount(),
-                    totalQuestCount = questViewModel.totalDailyQuestCount(),
-                    totalCompletedQuestCount = questViewModel.totalCompletedQuestCount(),
-                    currentStreak = questViewModel.currentStreak(),
-                    completedCategoryCounts = questViewModel.completedCategoryCounts()
+            composable(Routes.Reflect) {
+                ReflectScreen(
+                    reflections = questViewModel.recentReflections,
+                    questTitleForReflection = questViewModel::questTitleForReflection
                 )
+            }
+            composable(Routes.Progress) {
+                ProgressScreen(overview = questViewModel.progressOverview())
             }
             composable(Routes.Friends) {
                 FriendsScreen(onBack = { navController.popBackStack() })
@@ -222,14 +222,46 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                 )
             }
             composable(
+                route = Routes.QuestReflection,
+                arguments = listOf(navArgument("id") { type = NavType.StringType })
+            ) { entry ->
+                val id = entry.arguments?.getString("id") ?: ""
+                QuestReflectionScreen(
+                    quest = questViewModel.questById(id),
+                    prompt = questViewModel.reflectionPromptForQuest(id),
+                    errorText = questViewModel.journalErrorByQuestId[id],
+                    onBack = { navController.popBackStack() },
+                    onClose = {
+                        val returnedHome = navController.popBackStack(Routes.Home, inclusive = false)
+                        if (!returnedHome) {
+                            navController.navigate(Routes.Home) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                            }
+                        }
+                    },
+                    onSave = { note, promptChoice, quickTake ->
+                        val completed = questViewModel.completeQuestWithReflection(
+                            id = id,
+                            note = note,
+                            promptChoice = promptChoice,
+                            quickTake = quickTake
+                        )
+                        if (completed) {
+                            navController.navigate(Routes.complete(id))
+                        }
+                        completed
+                    }
+                )
+            }
+            composable(
                 route = Routes.Complete,
                 arguments = listOf(navArgument("id") { type = NavType.StringType })
-            ) {
+            ) { entry ->
+                val id = entry.arguments?.getString("id") ?: ""
                 CompleteScreen(
+                    hasReflection = questViewModel.hasReflectionForQuest(id),
                     onReflect = {
-                        navController.navigate(Routes.Reflect) {
-                            popUpTo(Routes.Home)
-                        }
+                        navController.navigate(Routes.questReflection(id))
                     },
                     onHome = {
                         val returnedHome = navController.popBackStack(Routes.Home, inclusive = false)

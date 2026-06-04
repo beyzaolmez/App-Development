@@ -4,16 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,79 +19,55 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.nhlstenden.momentum.data.model.CategoryProgressStat
+import com.nhlstenden.momentum.data.model.ProgressOverview
 import com.nhlstenden.momentum.data.model.QuestCategory
+import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
+import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
-fun ProgressScreen(
-    completedQuestCount: Int = 0,
-    totalQuestCount: Int = 0,
-    totalCompletedQuestCount: Int = completedQuestCount,
-    currentStreak: Int = 0,
-    completedCategoryCounts: Map<QuestCategory, Int> = emptyMap()
-) {
-    val questProgress = if (totalQuestCount == 0) {
-        0f
-    } else {
-        completedQuestCount.toFloat() / totalQuestCount.toFloat()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+fun ProgressScreen(overview: ProgressOverview = ProgressOverview()) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item { ProgressHeader() }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatCard(
+                    value = overview.currentStreak.toString(),
+                    label = "quest streak",
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    value = overview.totalCompletedQuests.toString(),
+                    label = "quests done total",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        item { ActivityStatsCard(overview) }
+    }
+}
+
+@Composable
+private fun ProgressHeader() {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             "Progress",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
-        Text("This week", style = MaterialTheme.typography.headlineLarge)
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(currentStreak.toString(), "soft streak", Modifier.weight(1f))
-            StatCard(totalCompletedQuestCount.toString(), "quests done", Modifier.weight(1f))
-        }
-
-        MomentumCard {
-            Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Quest progress", style = MaterialTheme.typography.titleLarge)
-                ProgressRow(
-                    label = "$completedQuestCount of $totalQuestCount daily quests completed",
-                    fraction = questProgress,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                if (completedCategoryCounts.isEmpty()) {
-                    Text(
-                        "Complete a quest to see category balance.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    val categoryTotal = completedCategoryCounts.values.sum().coerceAtLeast(1)
-                    completedCategoryCounts.forEach { (category, count) ->
-                        ProgressRow(
-                            label = "${category.label}: $count",
-                            fraction = count.toFloat() / categoryTotal.toFloat(),
-                            color = category.progressColor()
-                        )
-                    }
-                }
-            }
-        }
+        Text("Overview", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            "A simple overview of your long-term quest progress.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
-}
-
-@Composable
-private fun QuestCategory.progressColor(): Color = when (this) {
-    QuestCategory.Academic -> MaterialTheme.colorScheme.primary
-    QuestCategory.Focus -> MaterialTheme.colorScheme.secondary
-    QuestCategory.Wellbeing -> MaterialTheme.colorScheme.tertiary
-    QuestCategory.Social -> MaterialTheme.colorScheme.secondary
-    QuestCategory.Movement -> MaterialTheme.colorScheme.primary
 }
 
 @Composable
@@ -102,6 +76,40 @@ private fun StatCard(value: String, label: String, modifier: Modifier = Modifier
         Column(it, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(value, style = MaterialTheme.typography.headlineLarge)
             Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ActivityStatsCard(overview: ProgressOverview) {
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Activity statistics", style = MaterialTheme.typography.titleLarge)
+                MomentumChip("All time", variant = ChipVariant.Status)
+            }
+            Text(
+                "Preferred quest types",
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (overview.categoryStats.isEmpty()) {
+                Text(
+                    "Complete quests to see which activity types you choose most.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                overview.categoryStats.forEach { stat ->
+                    ProgressRow(
+                        label = "${stat.category.label}: ${stat.completedCount} completed",
+                        fraction = stat.fraction,
+                        color = stat.category.progressColor()
+                    )
+                }
+            }
         }
     }
 }
@@ -118,7 +126,7 @@ private fun ProgressRow(label: String, fraction: Float, color: Color) {
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(fraction)
+                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
                     .height(8.dp)
                     .background(color, RoundedCornerShape(50))
             )
@@ -126,8 +134,32 @@ private fun ProgressRow(label: String, fraction: Float, color: Color) {
     }
 }
 
+@Composable
+private fun QuestCategory.progressColor(): Color = when (this) {
+    QuestCategory.Academic -> MaterialTheme.colorScheme.primary
+    QuestCategory.Focus -> MaterialTheme.colorScheme.secondary
+    QuestCategory.Wellbeing -> MaterialTheme.colorScheme.tertiary
+    QuestCategory.Social -> MaterialTheme.colorScheme.secondary
+    QuestCategory.Movement -> MaterialTheme.colorScheme.primary
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun ProgressPreview() {
-    MomentumTheme { ProgressScreen() }
+    MomentumTheme {
+        ProgressScreen(
+            overview = ProgressOverview(
+                completedToday = 2,
+                totalDailyQuests = 3,
+                totalCompletedQuests = 9,
+                skippedQuestCount = 2,
+                currentStreak = 4,
+                categoryStats = listOf(
+                    CategoryProgressStat(QuestCategory.Movement, completedCount = 4, fraction = 4f / 9f),
+                    CategoryProgressStat(QuestCategory.Wellbeing, completedCount = 3, fraction = 3f / 9f),
+                    CategoryProgressStat(QuestCategory.Social, completedCount = 2, fraction = 2f / 9f)
+                )
+            )
+        )
+    }
 }

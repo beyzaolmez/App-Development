@@ -25,9 +25,11 @@ object Routes {
 
     // Detail screens
     const val QuestDetail = "quest/{id}"
+    const val QuestReflection = "quest/{id}/reflection"
     const val Complete = "complete/{id}"
 
     fun questDetail(id: String) = "quest/$id"
+    fun questReflection(id: String) = "quest/$id/reflection"
     fun complete(id: String) = "complete/$id"
 }
 
@@ -39,7 +41,7 @@ data class BottomTab(
 
 val BottomTabs = listOf(
     BottomTab(Routes.Home, "Home", Icons.Outlined.Home),
-    BottomTab(Routes.Reflect, "Reflect", Icons.Outlined.SelfImprovement),
     BottomTab(Routes.Progress, "Progress", Icons.Outlined.EmojiEvents),
+    BottomTab(Routes.Reflect, "Reflect", Icons.Outlined.SelfImprovement),
     BottomTab(Routes.Profile, "Profile", Icons.Outlined.AccountCircle)
 )
