@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
+import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
@@ -101,11 +102,7 @@ fun ProfileScreen(
                         placeholder = "Your display name"
                     )
                     if (saveNameError != null) {
-                        Text(
-                            saveNameError,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        MomentumInlineError(saveNameError)
                     }
                     MomentumPrimaryButton(
                         text = "Save name",
