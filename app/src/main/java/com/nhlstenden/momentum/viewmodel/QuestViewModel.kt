@@ -29,6 +29,8 @@ import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.data.repository.QuestRepository
 import com.nhlstenden.momentum.data.repository.ReflectionRepository
 import com.nhlstenden.momentum.data.repository.UserRepository
+import com.nhlstenden.momentum.util.FriendlyErrorMessages
+import com.nhlstenden.momentum.util.toFriendlyQuestDataMessage
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -260,8 +262,8 @@ class QuestViewModel(
                         createdAt = System.currentTimeMillis()
                     )
                 )
-            }.onFailure { error ->
-                errorMessage = error.localizedMessage ?: "Could not save quest feedback."
+            }.onFailure {
+                errorMessage = FriendlyErrorMessages.questFeedbackSave()
             }
         }
     }
@@ -362,7 +364,7 @@ class QuestViewModel(
                 }
             }.onFailure { error ->
                 loadDemoQuests()
-                errorMessage = error.toQuestDataMessage()
+                errorMessage = error.toFriendlyQuestDataMessage()
             }
 
             isLoading = false
@@ -415,7 +417,7 @@ class QuestViewModel(
             runCatching {
                 firestoreQuestRepository.saveQuestState(uid, questState)
             }.onFailure { error ->
-                errorMessage = error.toQuestDataMessage()
+                errorMessage = error.toFriendlyQuestDataMessage()
             }
         }
     }
@@ -439,7 +441,7 @@ class QuestViewModel(
                         reflectionRepository.saveReflection(uid, entry)
                     }
                 }.onFailure {
-                    errorMessage = "Quest completed, but the reflection could not sync yet."
+                    errorMessage = "Quest completed. Your reflection is saved and will sync once you're back online."
                 }
             }
             completeQuest(id)
@@ -502,7 +504,7 @@ class QuestViewModel(
                 }
             }
         }.onFailure {
-            errorMessage = "Progress updated locally, but could not sync to Firestore yet."
+            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
         }
     }
 
@@ -535,7 +537,7 @@ class QuestViewModel(
                 }
             }
         }.onFailure {
-            errorMessage = "Progress updated locally, but could not sync to Firestore yet."
+            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
         }
     }
 
@@ -645,15 +647,6 @@ private val QuestStatus.persistenceRank: Int
         QuestStatus.Skipped -> 2
         QuestStatus.Completed -> 3
     }
-
-private fun Throwable.toQuestDataMessage(): String {
-    val diagnosticText = localizedMessage.orEmpty().uppercase()
-    return when {
-        "PERMISSION_DENIED" in diagnosticText || "CLOUD FIRESTORE API" in diagnosticText ->
-            "Firestore is not enabled for this Firebase project yet. Showing demo quests until the database is enabled."
-        else -> localizedMessage ?: "Could not sync quests right now. Showing demo quests."
-    }
-}
 
 private fun List<QuestFeedback>.toCategoryScores(): Map<QuestCategory, Int> =
     groupBy { it.category }
