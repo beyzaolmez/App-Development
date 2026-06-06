@@ -47,7 +47,7 @@ fun MomentumTextField(
             )
         )
         if (errorText != null) {
-            Text(errorText, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            MomentumFieldError(errorText)
         }
     }
 }

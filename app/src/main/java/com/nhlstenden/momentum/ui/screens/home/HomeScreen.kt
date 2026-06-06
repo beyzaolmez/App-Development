@@ -20,6 +20,7 @@ import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumChip
+import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.QuestCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 import com.nhlstenden.momentum.viewmodel.QuestDataMode
@@ -64,12 +65,7 @@ fun HomeScreen(
             )
         }
         if (errorMessage != null) {
-            item {
-                Text(
-                    errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
-                )
+            item { MomentumInlineError(errorMessage)
             }
         }
         item {
