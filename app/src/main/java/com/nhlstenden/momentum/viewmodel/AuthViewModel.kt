@@ -3,8 +3,8 @@ package com.nhlstenden.momentum.viewmodel
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuthException
 import com.nhlstenden.momentum.data.repository.AuthRepository
+import com.nhlstenden.momentum.util.toFriendlyAuthMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,7 +61,7 @@ class AuthViewModel(
                 _uiState.update {
                     it.copy(
                         isRegistering = false,
-                        registrationError = error.toAuthMessage("Registration")
+                        registrationError = error.toFriendlyAuthMessage("Registration")
                     )
                 }
             }
@@ -94,7 +94,7 @@ class AuthViewModel(
                 _uiState.update {
                     it.copy(
                         isRegistering = false,
-                        registrationError = error.toAuthMessage("Sign in")
+                        registrationError = error.toFriendlyAuthMessage("Sign in")
                     )
                 }
             }
@@ -127,22 +127,3 @@ data class AuthUiState(
     val registrationError: String? = null,
     val isRegistering: Boolean = false
 )
-
-private fun Throwable.toAuthMessage(action: String): String {
-    val firebaseCode = (this as? FirebaseAuthException)?.errorCode.orEmpty()
-    val rawMessage = localizedMessage.orEmpty()
-    val diagnosticText = "$firebaseCode $rawMessage".uppercase()
-
-    return when {
-        "CONFIGURATION_NOT_FOUND" in diagnosticText ->
-            "Accounts are not enabled for this test build yet. Continue without an account for now."
-        "EMAIL_ALREADY_IN_USE" in diagnosticText ->
-            "This email already has an account. Try signing in instead."
-        "INVALID_LOGIN_CREDENTIALS" in diagnosticText || "INVALID_CREDENTIAL" in diagnosticText ->
-            "Email or password is incorrect."
-        "NETWORK" in diagnosticText ->
-            "Network error. Check your connection and try again."
-        rawMessage.isNotBlank() -> rawMessage
-        else -> "$action failed. Please try again."
-    }
-}
