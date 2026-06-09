@@ -22,6 +22,7 @@ import com.example.emptyapp.ui.screens.auth.WelcomeScreen
 import com.example.emptyapp.ui.screens.friends.FriendsScreen
 import com.example.emptyapp.ui.screens.home.HomeScreen
 import com.example.emptyapp.ui.screens.profile.ProfileScreen
+import com.example.emptyapp.ui.screens.profile.SuggestQuestScreen
 import com.example.emptyapp.ui.screens.progress.ProgressScreen
 import com.example.emptyapp.ui.screens.quest.CompleteScreen
 import com.example.emptyapp.ui.screens.quest.QuestDetailScreen
@@ -110,8 +111,14 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Routes.Welcome) {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
+                    },
+                    onSuggestQuest = { navController.navigate(Routes.SuggestQuest) }
                 )
+            }
+
+            // ---------- Profile sub-screens ----------
+            composable(Routes.SuggestQuest) {
+                SuggestQuestScreen(onBack = { navController.popBackStack() })
             }
 
             // ---------- Detail screens ----------
