@@ -35,7 +35,8 @@ import com.example.emptyapp.ui.theme.MomentumTheme
 @Composable
 fun ProfileScreen(
     onSignOut: () -> Unit = {},
-    onSuggestQuest: () -> Unit = {}
+    onSuggestQuest: () -> Unit = {},
+    onFeedback: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -84,6 +85,7 @@ fun ProfileScreen(
             }
         }
 
+        MomentumSecondaryButton("Send feedback", onFeedback, Modifier.fillMaxWidth())
         MomentumSecondaryButton("Suggest a quest", onSuggestQuest, Modifier.fillMaxWidth())
         MomentumQuietButton("Sign out", onSignOut, Modifier.fillMaxWidth())
     }
