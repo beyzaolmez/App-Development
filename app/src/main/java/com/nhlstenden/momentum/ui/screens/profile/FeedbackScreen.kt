@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.FeedbackStore
+import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
@@ -28,20 +29,23 @@ fun FeedbackScreen(onBack: () -> Unit = {}) {
     var message by remember { mutableStateOf("") }
     var submitted by remember { mutableStateOf(false) }
     var submitting by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf(false) }
 
     if (submitted) {
         FeedbackSubmittedContent(onBack = onBack)
     } else {
         FeedbackFormContent(
             message = message,
-            onMessageChange = { message = it },
+            onMessageChange = { message = it; saveError = false },
             submitting = submitting,
+            saveError = saveError,
             onSubmit = {
                 submitting = true
+                saveError = false
                 FeedbackStore.save(
                     message = message,
                     onSuccess = { submitted = true },
-                    onError = { submitted = true }
+                    onError = { submitting = false; saveError = true }
                 )
             },
             onBack = onBack
@@ -54,6 +58,7 @@ private fun FeedbackFormContent(
     message: String,
     onMessageChange: (String) -> Unit,
     submitting: Boolean,
+    saveError: Boolean,
     onSubmit: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -109,6 +114,10 @@ private fun FeedbackFormContent(
         }
 
         Spacer(Modifier.weight(1f))
+
+        if (saveError) {
+            MomentumInlineError("We couldn't send your feedback. Please try again.")
+        }
 
         MomentumPrimaryButton(
             text = if (submitting) "Submitting…" else "Submit feedback",

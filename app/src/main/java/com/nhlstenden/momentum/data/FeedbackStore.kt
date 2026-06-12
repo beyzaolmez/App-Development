@@ -1,5 +1,6 @@
 package com.nhlstenden.momentum.data
 
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
@@ -14,9 +15,8 @@ object FeedbackStore {
 
     // Lazy so Firestore is only accessed after Firebase has initialised
     // (which happens automatically when google-services.json is present).
-    private val collection by lazy {
-        Firebase.firestore.collection("feedback")
-    }
+    private val auth by lazy { FirebaseAuth.getInstance() }
+    private val collection by lazy { Firebase.firestore.collection("feedback") }
 
     fun save(
         message: String,
@@ -26,7 +26,8 @@ object FeedbackStore {
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
         val data = hashMapOf(
             "message" to message.trim(),
-            "timestamp" to timestamp
+            "timestamp" to timestamp,
+            "uid" to (auth.currentUser?.uid ?: "anonymous")
         )
         collection.add(data)
             .addOnSuccessListener { onSuccess() }

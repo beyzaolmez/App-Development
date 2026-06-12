@@ -16,10 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.SuggestionsStore
+import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumTextField
@@ -27,25 +27,35 @@ import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
 fun SuggestQuestScreen(onBack: () -> Unit = {}) {
-    val context = LocalContext.current
     var title by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var submitted by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf(false) }
 
     if (submitted) {
         SubmittedContent(onBack = onBack)
     } else {
         FormContent(
             title = title,
-            onTitleChange = { title = it },
+            onTitleChange = { title = it; saveError = false },
             category = category,
             onCategoryChange = { category = it },
             notes = notes,
             onNotesChange = { notes = it },
+            submitting = submitting,
+            saveError = saveError,
             onSubmit = {
-                SuggestionsStore.save(context, title, category, notes)
-                submitted = true
+                submitting = true
+                saveError = false
+                SuggestionsStore.save(
+                    title = title,
+                    category = category,
+                    notes = notes,
+                    onSuccess = { submitted = true },
+                    onError = { submitting = false; saveError = true }
+                )
             },
             onBack = onBack
         )
@@ -60,10 +70,12 @@ private fun FormContent(
     onCategoryChange: (String) -> Unit,
     notes: String,
     onNotesChange: (String) -> Unit,
+    submitting: Boolean,
+    saveError: Boolean,
     onSubmit: () -> Unit,
     onBack: () -> Unit
 ) {
-    val isValid = title.isNotBlank()
+    val isValid = title.isNotBlank() && !submitting
 
     Column(
         modifier = Modifier
@@ -142,8 +154,12 @@ private fun FormContent(
 
         Spacer(Modifier.weight(1f))
 
+        if (saveError) {
+            MomentumInlineError("We couldn't save your suggestion. Please try again.")
+        }
+
         MomentumPrimaryButton(
-            text = "Submit suggestion",
+            text = if (submitting) "Submitting…" else "Submit suggestion",
             onClick = onSubmit,
             modifier = Modifier.fillMaxWidth(),
             enabled = isValid
