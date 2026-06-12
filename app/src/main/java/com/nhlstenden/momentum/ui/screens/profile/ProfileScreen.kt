@@ -49,6 +49,8 @@ fun ProfileScreen(
     onOpenFriends: () -> Unit = {},
     onEditInterests: () -> Unit = {},
     onSendTestNotification: () -> Unit = {},
+    onSuggestQuest: () -> Unit = {},
+    onFeedback: () -> Unit = {},
     onSignOut: () -> Unit = {}
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -171,6 +173,8 @@ fun ProfileScreen(
             }
         }
 
+        MomentumSecondaryButton("Send feedback", onFeedback, Modifier.fillMaxWidth())
+        MomentumSecondaryButton("Suggest a quest", onSuggestQuest, Modifier.fillMaxWidth())
         MomentumQuietButton("Sign out", onSignOut, Modifier.fillMaxWidth())
     }
 }

@@ -22,6 +22,8 @@ import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.notification.NotificationHelper
 import com.nhlstenden.momentum.ui.components.MomentumBottomNav
 import com.nhlstenden.momentum.ui.screens.auth.ForgotPasswordScreen
+import com.nhlstenden.momentum.ui.screens.profile.FeedbackScreen
+import com.nhlstenden.momentum.ui.screens.profile.SuggestQuestScreen
 import com.nhlstenden.momentum.ui.screens.auth.SignInScreen
 import com.nhlstenden.momentum.ui.screens.auth.SignUpScreen
 import com.nhlstenden.momentum.ui.screens.auth.WelcomeScreen
@@ -114,6 +116,14 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     onBack = { navController.popBackStack() }
                 )
             }
+
+            // ---------- Profile sub-screens ----------
+            composable(Routes.SuggestQuest) {
+                SuggestQuestScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.Feedback) {
+                FeedbackScreen(onBack = { navController.popBackStack() })
+            }
             composable(Routes.Onboarding) {
                 OnboardingScreen(
                     onFinish = navigateInterests,
@@ -177,6 +187,8 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     onSaveDisplayName = { newName -> profileViewModel.updateDisplayName(newName) },
                     onOpenFriends = { navController.navigate(Routes.Friends) },
                     onEditInterests = { navController.navigate(Routes.Interests) },
+                    onSuggestQuest = { navController.navigate(Routes.SuggestQuest) },
+                    onFeedback = { navController.navigate(Routes.Feedback) },
                     onSendTestNotification = {
                         NotificationHelper.showQuestNotification(
                             context,

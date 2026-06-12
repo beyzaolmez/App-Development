@@ -28,6 +28,10 @@ object Routes {
     const val QuestReflection = "quest/{id}/reflection"
     const val Complete = "complete/{id}"
 
+    // Profile sub-screens
+    const val SuggestQuest = "suggest_quest"
+    const val Feedback = "feedback"
+
     fun questDetail(id: String) = "quest/$id"
     fun questReflection(id: String) = "quest/$id/reflection"
     fun complete(id: String) = "complete/$id"
