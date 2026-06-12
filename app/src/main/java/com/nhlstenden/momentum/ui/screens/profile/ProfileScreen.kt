@@ -1,0 +1,216 @@
+package com.nhlstenden.momentum.ui.screens.profile
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.nhlstenden.momentum.ui.components.ChipVariant
+import com.nhlstenden.momentum.ui.components.MomentumCard
+import com.nhlstenden.momentum.ui.components.MomentumChip
+import com.nhlstenden.momentum.ui.components.MomentumInlineError
+import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
+import com.nhlstenden.momentum.ui.components.MomentumQuietButton
+import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
+import com.nhlstenden.momentum.ui.components.MomentumStatusCard
+import com.nhlstenden.momentum.ui.components.MomentumTextField
+import com.nhlstenden.momentum.ui.theme.MomentumTheme
+
+@Composable
+fun ProfileScreen(
+    displayName: String,
+    subtitle: String,
+    isDemoUser: Boolean,
+    selectedInterests: List<String> = emptyList(),
+    isSavingName: Boolean = false,
+    saveNameError: String? = null,
+    onSaveDisplayName: ((String) -> Unit)? = null,
+    onOpenFriends: () -> Unit = {},
+    onEditInterests: () -> Unit = {},
+    onSendTestNotification: () -> Unit = {},
+    onSuggestQuest: () -> Unit = {},
+    onFeedback: () -> Unit = {},
+    onSignOut: () -> Unit = {}
+) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editedName by remember(displayName) { mutableStateOf(displayName) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Profile", style = MaterialTheme.typography.headlineLarge)
+
+        MomentumCard {
+            Column(modifier = it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(displayName, style = MaterialTheme.typography.titleLarge)
+                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (!isDemoUser) {
+                        if (isSavingName) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            MomentumSecondaryButton(
+                                text = if (isEditing) "Cancel" else "Edit",
+                                onClick = {
+                                    isEditing = !isEditing
+                                    editedName = displayName
+                                }
+                            )
+                        }
+                    }
+                }
+                if (isEditing && !isDemoUser) {
+                    MomentumTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        placeholder = "Your display name"
+                    )
+                    if (saveNameError != null) {
+                        MomentumInlineError(saveNameError)
+                    }
+                    MomentumPrimaryButton(
+                        text = "Save name",
+                        onClick = {
+                            onSaveDisplayName?.invoke(editedName)
+                            isEditing = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = editedName.isNotBlank() && editedName != displayName
+                    )
+                }
+            }
+        }
+
+        if (isDemoUser) {
+            MomentumStatusCard(
+                title = "Demo profile",
+                message = "Profile data is temporary until a Firebase account is signed in.",
+                variant = ChipVariant.Reward
+            )
+        }
+
+        MomentumCard {
+            Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SettingRow("Notifications", "One quiet reminder")
+                SettingRow("Private journal", "Only visible to you")
+                MomentumSecondaryButton(
+                    text = "Send test reminder",
+                    onClick = onSendTestNotification,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        MomentumCard {
+            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Friends", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Optional shared streaks and invites can live here later.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                MomentumSecondaryButton("Open friends", onOpenFriends, Modifier.fillMaxWidth())
+            }
+        }
+
+        MomentumCard {
+            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Interests", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    if (selectedInterests.isEmpty()) {
+                        "Choose interests to personalize your daily quest categories."
+                    } else {
+                        "These categories influence your daily quest list."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val interests = selectedInterests.ifEmpty { listOf("Not set") }
+                    interests.take(3).forEach { interest ->
+                        MomentumChip(interest, variant = ChipVariant.Category)
+                    }
+                }
+                MomentumSecondaryButton("Edit interests", onEditInterests, Modifier.fillMaxWidth())
+            }
+        }
+
+        MomentumSecondaryButton("Send feedback", onFeedback, Modifier.fillMaxWidth())
+        MomentumSecondaryButton("Suggest a quest", onSuggestQuest, Modifier.fillMaxWidth())
+        MomentumQuietButton("Sign out", onSignOut, Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun SettingRow(title: String, subtitle: String) {
+    var on by remember { mutableStateOf(true) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(
+            checked = on,
+            onCheckedChange = { on = it },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
+@Composable
+private fun ProfilePreview() {
+    MomentumTheme {
+        ProfileScreen(
+            displayName = "Testing user",
+            subtitle = "Demo mode",
+            isDemoUser = true
+        )
+    }
+}
