@@ -6,24 +6,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumTextField
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.viewmodel.ForgotPasswordViewModel
 
 @Composable
 fun ForgotPasswordScreen(
     onSent: () -> Unit = {},
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    viewModel: ForgotPasswordViewModel = viewModel()
 ) {
-    var email by remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -33,8 +35,25 @@ fun ForgotPasswordScreen(
     ) {
         AuthHeader(title = "No rush.", subtitle = "Enter your email and we'll send a reset link.", onBack = onBack)
 
-        MomentumTextField(email, { email = it }, "Email address", keyboardType = KeyboardType.Email)
-        MomentumPrimaryButton("Send link", onSent, Modifier.fillMaxWidth())
+        MomentumTextField(
+            value = uiState.email,
+            onValueChange = viewModel::onEmailChanged,
+            placeholder = "Email address",
+            keyboardType = KeyboardType.Email,
+            errorText = uiState.emailError
+        )
+
+        val requestError = uiState.requestError
+        if (requestError != null) {
+            MomentumInlineError(requestError)
+        }
+
+        MomentumPrimaryButton(
+            text = if (uiState.isSending) "Sending..." else "Send link",
+            onClick = { viewModel.sendResetLink(onSent) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !uiState.isSending
+        )
     }
 }
 
