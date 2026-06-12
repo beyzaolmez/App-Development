@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.repository.AuthRepository
+import com.nhlstenden.momentum.util.FriendlyErrorMessages
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
@@ -39,8 +40,8 @@ class ProfileViewModel(
             }.onSuccess {
                 displayName = trimmed
                 isSaving = false
-            }.onFailure { error ->
-                saveError = error.localizedMessage ?: "Failed to update name."
+            }.onFailure {
+                saveError = FriendlyErrorMessages.profileSave()
                 isSaving = false
             }
         }
