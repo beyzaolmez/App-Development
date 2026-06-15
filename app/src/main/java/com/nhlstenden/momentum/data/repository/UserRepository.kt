@@ -7,6 +7,7 @@ import kotlinx.coroutines.tasks.await
 
 interface UserRepository {
     suspend fun getUser(uid: String): User?
+    suspend fun findByEmail(email: String): User?
     suspend fun saveUser(user: User)
     suspend fun updateDisplayName(uid: String, displayName: String)
     suspend fun updateInterests(uid: String, interests: List<String>)
@@ -18,6 +19,9 @@ class InMemoryUserRepository : UserRepository {
     private val users = mutableMapOf<String, User>()
 
     override suspend fun getUser(uid: String): User? = users[uid]
+
+    override suspend fun findByEmail(email: String): User? =
+        users.values.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
 
     override suspend fun saveUser(user: User) {
         users[user.uid] = user
@@ -50,6 +54,29 @@ class FirestoreUserRepository(
         val progressMap = document.get("progress") as? Map<*, *>
         return User(
             uid = uid,
+            displayName = document.getString("displayName").orEmpty(),
+            email = document.getString("email").orEmpty(),
+            interests = document.get("interests").toStringList(),
+            notificationEnabled = document.getBoolean("notificationEnabled") ?: false,
+            progress = progressMap.toUserProgress(),
+            onboardingCompleted = document.getBoolean("onboardingCompleted") ?: false
+        )
+    }
+
+    override suspend fun findByEmail(email: String): User? {
+        val normalized = email.trim()
+        if (normalized.isEmpty()) return null
+
+        val snapshot = firestore.collection("users")
+            .whereEqualTo("email", normalized)
+            .limit(1)
+            .get()
+            .await()
+
+        val document = snapshot.documents.firstOrNull() ?: return null
+        val progressMap = document.get("progress") as? Map<*, *>
+        return User(
+            uid = document.id,
             displayName = document.getString("displayName").orEmpty(),
             email = document.getString("email").orEmpty(),
             interests = document.get("interests").toStringList(),
