@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nhlstenden.momentum.data.model.FriendStreak
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakLogic
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
@@ -50,6 +51,7 @@ fun FriendsScreen(
         isLoading = viewModel.isLoading,
         loadError = viewModel.loadError,
         activeStreaks = viewModel.activeStreaks,
+        friendStreaks = viewModel.friendStreaks,
         incomingInvitations = viewModel.incomingInvitations,
         outgoingInvitations = viewModel.outgoingInvitations,
         inviteEmail = inviteEmail,
@@ -76,6 +78,7 @@ private fun FriendsContent(
     isLoading: Boolean,
     loadError: String?,
     activeStreaks: List<SharedStreak>,
+    friendStreaks: List<FriendStreak>,
     incomingInvitations: List<SharedStreak>,
     outgoingInvitations: List<SharedStreak>,
     inviteEmail: String,
@@ -144,6 +147,16 @@ private fun FriendsContent(
                 streak = streak,
                 bothDoneToday = streak.bothCompletedOn(SharedStreakLogic.today())
             )
+        }
+
+        // ---- Friends' own streaks ----
+        // Shows each connected friend's personal quest streak so the user can see
+        // how their friends are doing and stay motivated.
+        if (friendStreaks.isNotEmpty()) {
+            Text("How your friends are doing", style = MaterialTheme.typography.titleLarge)
+            friendStreaks.forEach { friend ->
+                FriendStreakRow(friend)
+            }
         }
 
         // ---- Outgoing (waiting) invitations ----
@@ -259,6 +272,38 @@ private fun SharedStreakRow(
     }
 }
 
+@Composable
+private fun FriendStreakRow(friend: FriendStreak) {
+    MomentumCard {
+        Row(
+            modifier = it,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(friend.displayName, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    when {
+                        friend.currentStreak <= 0 -> "No streak yet — cheer them on"
+                        friend.currentStreak == 1 -> "On a 1 day streak"
+                        else -> "On a ${friend.currentStreak} day streak"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (friend.currentStreak > 0) {
+                MomentumChip(
+                    "${friend.currentStreak} ${if (friend.currentStreak == 1) "day" else "days"}",
+                    variant = ChipVariant.Category
+                )
+            } else {
+                MomentumChip("new", variant = ChipVariant.Reward)
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun FriendsPreview() {
@@ -277,6 +322,10 @@ private fun FriendsPreview() {
                     currentStreak = 3,
                     lastIncrementDate = SharedStreakLogic.today()
                 )
+            ),
+            friendStreaks = listOf(
+                FriendStreak(uid = "noor", displayName = "Noor", currentStreak = 5),
+                FriendStreak(uid = "sam", displayName = "Sam", currentStreak = 0)
             ),
             incomingInvitations = listOf(
                 SharedStreak(
