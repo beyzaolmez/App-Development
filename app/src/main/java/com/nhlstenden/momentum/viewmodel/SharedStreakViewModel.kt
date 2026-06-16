@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.nhlstenden.momentum.data.model.FriendStreak
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakLogic
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
@@ -38,6 +39,14 @@ class SharedStreakViewModel(
     var outgoingInvitations by mutableStateOf<List<SharedStreak>>(emptyList())
         private set
 
+    /**
+     * Each connected friend's own individual streak, so the user can see how their
+     * friends are doing. A "connected friend" is the other member of an Active shared
+     * streak; their streak comes from their own user document.
+     */
+    var friendStreaks by mutableStateOf<List<FriendStreak>>(emptyList())
+        private set
+
     var isLoading by mutableStateOf(false)
         private set
 
@@ -66,6 +75,7 @@ class SharedStreakViewModel(
             activeStreaks = emptyList()
             incomingInvitations = emptyList()
             outgoingInvitations = emptyList()
+            friendStreaks = emptyList()
             return
         }
 
@@ -199,6 +209,35 @@ class SharedStreakViewModel(
         activeStreaks = evaluatedActive.sortedByDescending { it.currentStreak }
         incomingInvitations = incoming
         outgoingInvitations = outgoing
+
+        // Connected friends are the other members of active streaks; load each one's
+        // own personal streak so the user can see how their friends are doing.
+        val friendIds = evaluatedActive.mapNotNull { it.otherMemberId(uid) }.distinct()
+        loadFriendStreaks(friendIds)
+    }
+
+    /** Fetches each connected friend's individual streak from their user document. */
+    private fun loadFriendStreaks(friendIds: List<String>) {
+        if (friendIds.isEmpty()) {
+            friendStreaks = emptyList()
+            return
+        }
+
+        viewModelScope.launch {
+            val loaded = friendIds.mapNotNull { friendId ->
+                val friend = runCatching {
+                    withTimeout(FIRESTORE_TIMEOUT_MS) { userRepository.getUser(friendId) }
+                }.getOrNull() ?: return@mapNotNull null
+
+                FriendStreak(
+                    uid = friend.uid,
+                    displayName = friend.displayName.ifBlank { friend.email.substringBefore("@") },
+                    currentStreak = friend.progress.currentStreak,
+                    lastQuestCompletionDate = friend.progress.lastQuestCompletionDate
+                )
+            }
+            friendStreaks = loaded.sortedByDescending { it.currentStreak }
+        }
     }
 
     private fun persist(streak: SharedStreak) {
