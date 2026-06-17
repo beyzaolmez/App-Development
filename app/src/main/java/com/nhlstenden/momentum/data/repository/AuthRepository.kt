@@ -85,4 +85,21 @@ class AuthRepository(
     fun signOut() {
         firebaseAuth.signOut()
     }
+
+    /**
+     * Deletes the current user's account from Firebase Auth and Firestore.
+     * Returns Result.success(Unit) on success, Result.failure(exception) on error.
+     */
+    suspend fun deleteAccount(): Result<Unit> {
+        val user = firebaseAuth.currentUser ?: return Result.failure(IllegalStateException("No user signed in"))
+        val uid = user.uid
+
+        return runCatching {
+            // Delete Firestore user document and subcollections first
+            userRepository.deleteUser(uid)
+
+            // Delete Firebase Auth user
+            user.delete().await()
+        }
+    }
 }
