@@ -221,7 +221,25 @@ class SharedStreakViewModel(
         }
     }
 
-    fun accept(streakId: String) = respond(streakId, accepted = true)
+    fun accept(streakId: String) {
+        val invitation = incomingInvitations.firstOrNull { it.id == streakId }
+        if (invitation == null) {
+            respond(streakId, accepted = true)
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) {
+                    sharedStreakRepository.updateStreak(activateWithTodayProgress(invitation))
+                }
+            }.onSuccess {
+                refresh()
+            }.onFailure {
+                loadError = "We couldn't accept that invitation. Please try again."
+            }
+        }
+    }
 
     fun decline(streakId: String) = respond(streakId, accepted = false)
 
@@ -241,6 +259,29 @@ class SharedStreakViewModel(
             }.onFailure {
                 loadError = "We couldn't update that invitation. Please try again."
             }
+        }
+    }
+
+    private suspend fun activateWithTodayProgress(streak: SharedStreak): SharedStreak {
+        val today = SharedStreakLogic.today()
+        val completionDates = streak.memberIds
+            .mapNotNull { uid ->
+                val user = userRepository.getUser(uid) ?: return@mapNotNull null
+                if (user.progress.lastQuestCompletionDate == today) uid to today else null
+            }
+            .toMap()
+
+        val activated = streak.copy(
+            status = SharedStreakStatus.Active,
+            currentStreak = 0,
+            lastCompletionDates = completionDates,
+            lastIncrementDate = null
+        )
+
+        return if (activated.bothCompletedOn(today)) {
+            SharedStreakLogic.recordCompletion(activated, activated.memberIds.first(), today)
+        } else {
+            activated
         }
     }
 
