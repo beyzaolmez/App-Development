@@ -51,8 +51,12 @@ fun ProfileScreen(
     onSendTestNotification: () -> Unit = {},
     onSuggestQuest: () -> Unit = {},
     onFeedback: () -> Unit = {},
-    onSignOut: () -> Unit = {}
+    onSignOut: () -> Unit = {},
+    isDeletingAccount: Boolean = false,
+    deleteAccountError: String? = null,
+    onDeleteAccount: () -> Unit = {}
 ) {
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
     var editedName by remember(displayName) { mutableStateOf(displayName) }
     Column(
@@ -176,7 +180,59 @@ fun ProfileScreen(
         MomentumSecondaryButton("Send feedback", onFeedback, Modifier.fillMaxWidth())
         MomentumSecondaryButton("Suggest a quest", onSuggestQuest, Modifier.fillMaxWidth())
         MomentumQuietButton("Sign out", onSignOut, Modifier.fillMaxWidth())
+
+        if (!isDemoUser) {
+            MomentumQuietButton(
+                text = if (isDeletingAccount) "Deleting account..." else "Delete account",
+                onClick = { showDeleteConfirmation = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isDeletingAccount
+            )
+        }
+
+        if (showDeleteConfirmation) {
+            DeleteAccountDialog(
+                onConfirm = {
+                    showDeleteConfirmation = false
+                    onDeleteAccount()
+                },
+                onDismiss = { showDeleteConfirmation = false }
+            )
+        }
+
+        if (deleteAccountError != null) {
+            MomentumInlineError(deleteAccountError)
+        }
     }
+}
+
+@Composable
+private fun DeleteAccountDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete your account?") },
+        text = {
+            Text(
+                "This will permanently delete your account and all your data. " +
+                "This action cannot be undone."
+            )
+        },
+        confirmButton = {
+            MomentumPrimaryButton(
+                text = "Delete",
+                onClick = onConfirm
+            )
+        },
+        dismissButton = {
+            MomentumSecondaryButton(
+                text = "Cancel",
+                onClick = onDismiss
+            )
+        }
+    )
 }
 
 @Composable

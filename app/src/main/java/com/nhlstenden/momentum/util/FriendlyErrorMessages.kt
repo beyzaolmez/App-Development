@@ -78,6 +78,18 @@ object FriendlyErrorMessages {
     fun questFeedbackSave(): String =
         "We couldn't save your quest feedback. Please try again."
 
+    /** Friendly copy for account deletion failure. */
+    fun accountDeletion(rawMessage: String?): String {
+        val diagnostic = rawMessage.orEmpty().uppercase()
+        return when {
+            "NETWORK" in diagnostic || "UNAVAILABLE" in diagnostic ->
+                "Can't reach the network. Check your connection and try again."
+            "REQUIRES_RECENT_LOGIN" in diagnostic ->
+                "Please sign out and sign back in, then try deleting your account again."
+            else -> "We couldn't delete your account right now. Please try again later."
+        }
+    }
+
     /**
      * Friendly copy for a password-reset email failure.
      *
@@ -118,3 +130,7 @@ fun Throwable.toFriendlyPasswordResetMessage(): String =
         errorCode = (this as? FirebaseAuthException)?.errorCode,
         rawMessage = localizedMessage
     )
+
+/** Maps any exception to friendly copy for account deletion. */
+fun Throwable.toFriendlyAccountDeletionMessage(): String =
+    FriendlyErrorMessages.accountDeletion(localizedMessage)

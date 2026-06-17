@@ -16,6 +16,12 @@ interface UserRepository {
     suspend fun updateInterests(uid: String, interests: List<String>)
     suspend fun updateNotificationPreference(uid: String, enabled: Boolean)
     suspend fun updateProgress(uid: String, progress: UserProgress)
+
+    /**
+     * Deletes the user document and all subcollections from Firestore.
+     * This should be called before deleting the Firebase Auth account.
+     */
+    suspend fun deleteUser(uid: String)
 }
 
 class InMemoryUserRepository : UserRepository {
@@ -53,6 +59,10 @@ class InMemoryUserRepository : UserRepository {
 
     override suspend fun updateProgress(uid: String, progress: UserProgress) {
         users[uid] = users[uid]?.copy(progress = progress) ?: return
+    }
+
+    override suspend fun deleteUser(uid: String) {
+        users.remove(uid)
     }
 }
 
@@ -140,6 +150,25 @@ class FirestoreUserRepository(
             .document(uid)
             .update("progress", progress.toFirestoreMap())
             .await()
+    }
+
+    override suspend fun deleteUser(uid: String) {
+        val batch = firestore.batch()
+        val userDoc = firestore.collection("users").document(uid)
+
+        // Delete subcollections first
+        val subcollections = listOf("questStates", "questFeedback", "journalEntries")
+        subcollections.forEach { subcollection ->
+            val snapshot = userDoc.collection(subcollection).get().await()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+        }
+
+        // Delete the user document itself
+        batch.delete(userDoc)
+
+        batch.commit().await()
     }
 }
 

@@ -2,13 +2,15 @@ package com.nhlstenden.momentum.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 import com.nhlstenden.momentum.data.model.User
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 
 class AuthRepository(
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val userRepository: UserRepository = FirestoreUserRepository()
+    private val userRepository: UserRepository = FirestoreUserRepository(),
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
     val currentUser get() = firebaseAuth.currentUser
 
@@ -98,5 +100,60 @@ class AuthRepository(
 
     fun signOut() {
         firebaseAuth.signOut()
+    }
+
+    /**
+     * Deletes the current user's account from Firebase Auth and Firestore.
+     *
+     * Cleanup order (all while still authenticated, since the rules require it):
+     *  1. Removal of user-linked top-level data (shared streaks, feedback,
+     *     quest suggestions).
+     *  2. The user document and its private subcollections.
+     *  3. The Firebase Auth user, last, so the account can no longer sign in.
+     *
+     * Returns Result.success(Unit) on success, Result.failure(exception) on error.
+     */
+    suspend fun deleteAccount(): Result<Unit> {
+        val user = firebaseAuth.currentUser ?: return Result.failure(IllegalStateException("No user signed in"))
+        val uid = user.uid
+
+        return runCatching {
+            // 1. Cleanup top-level data linked to this user.
+            deleteUserLinkedData(uid)
+
+            // 2. Delete the user document and its private subcollections.
+            userRepository.deleteUser(uid)
+
+            // 3. Delete the Firebase Auth user last.
+            user.delete().await()
+        }
+    }
+
+    /**
+     * Removes top-level Firestore documents that reference this user: shared
+     * streaks the user is a member of, and feedback / quest suggestions the
+     * user authored.
+     */
+    private suspend fun deleteUserLinkedData(uid: String) {
+        // Shared streaks where the user is a member (either participant).
+        val streaks = firestore.collection("sharedStreaks")
+            .whereArrayContains("memberIds", uid)
+            .get()
+            .await()
+        streaks.documents.forEach { it.reference.delete().await() }
+
+        // Feedback authored by the user.
+        val feedback = firestore.collection("feedback")
+            .whereEqualTo("uid", uid)
+            .get()
+            .await()
+        feedback.documents.forEach { it.reference.delete().await() }
+
+        // Quest suggestions authored by the user.
+        val suggestions = firestore.collection("quest_suggestions")
+            .whereEqualTo("uid", uid)
+            .get()
+            .await()
+        suggestions.documents.forEach { it.reference.delete().await() }
     }
 }
