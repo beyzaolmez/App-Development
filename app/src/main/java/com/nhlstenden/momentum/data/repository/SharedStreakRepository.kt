@@ -1,6 +1,7 @@
 package com.nhlstenden.momentum.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakLogic
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
@@ -14,6 +15,13 @@ import kotlinx.coroutines.tasks.await
 interface SharedStreakRepository {
     /** All shared streaks (any status) the given user is a member of. */
     suspend fun getStreaksForUser(uid: String): List<SharedStreak>
+
+    /** Observes all shared streaks the given user is a member of. */
+    fun observeStreaksForUser(
+        uid: String,
+        onChange: (List<SharedStreak>) -> Unit,
+        onError: (Throwable) -> Unit
+    ): ListenerRegistration
 
     /** Creates a Pending invitation from [inviterUid] to [inviteeUid]. Returns the new id. */
     suspend fun createInvitation(
@@ -42,6 +50,15 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
 
     override suspend fun getStreaksForUser(uid: String): List<SharedStreak> =
         streaks.values.filter { uid in it.memberIds }
+
+    override fun observeStreaksForUser(
+        uid: String,
+        onChange: (List<SharedStreak>) -> Unit,
+        onError: (Throwable) -> Unit
+    ): ListenerRegistration {
+        onChange(streaks.values.filter { uid in it.memberIds })
+        return ListenerRegistration {}
+    }
 
     override suspend fun createInvitation(
         inviterUid: String,
@@ -95,6 +112,21 @@ class FirestoreSharedStreakRepository(
         return snapshot.documents.mapNotNull { it.toSharedStreak() }
     }
 
+    override fun observeStreaksForUser(
+        uid: String,
+        onChange: (List<SharedStreak>) -> Unit,
+        onError: (Throwable) -> Unit
+    ): ListenerRegistration =
+        collection
+            .whereArrayContains("memberIds", uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onError(error)
+                    return@addSnapshotListener
+                }
+                onChange(snapshot?.documents?.mapNotNull { it.toSharedStreak() }.orEmpty())
+            }
+
     override suspend fun createInvitation(
         inviterUid: String,
         inviterName: String,
@@ -128,19 +160,27 @@ class FirestoreSharedStreakRepository(
     }
 
     override suspend fun recordCompletion(uid: String, today: String) {
-        val active = collection
+        val activeRefs = collection
             .whereArrayContains("memberIds", uid)
             .get()
             .await()
             .documents
-            .mapNotNull { it.toSharedStreak() }
-            .filter { it.status == SharedStreakStatus.Active }
+            .map { it.reference }
 
-        active.forEach { streak ->
-            val updated = SharedStreakLogic.recordCompletion(streak, uid, today)
-            if (updated != streak) {
-                updateStreak(updated)
+        activeRefs.forEach { reference ->
+            firestore.runTransaction { transaction ->
+                val streak = transaction.get(reference).toSharedStreak()
+                    ?: return@runTransaction null
+                if (streak.status != SharedStreakStatus.Active) return@runTransaction null
+
+                val evaluated = SharedStreakLogic.evaluateForToday(streak, today)
+                val updated = SharedStreakLogic.recordCompletion(evaluated, uid, today)
+                if (updated != streak) {
+                    transaction.set(reference, updated.toFirestoreMap())
+                }
+                null
             }
+                .await()
         }
     }
 

@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isSharedStreakMember() {
+      return signedIn() && request.auth.uid in resource.data.memberIds;
+    }
+
+    function isSharedStreakMemberAfterWrite() {
+      return signedIn() && request.auth.uid in request.resource.data.memberIds;
+    }
+
+    function validSharedStreakStatus() {
+      return request.resource.data.status in ['Pending', 'Active', 'Declined'];
+    }
+
+    function hasTwoSharedStreakMembers() {
+      return request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() == 2;
+    }
+
+    function sharedStreakMembersDoNotChange() {
+      return request.resource.data.memberIds == resource.data.memberIds
+        && request.resource.data.memberNames == resource.data.memberNames
+        && request.resource.data.invitedByUid == resource.data.invitedByUid
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /users/{userId} {
+      allow get, list: if signedIn();
+
+      allow create: if isSelf(userId)
+        && request.resource.data.uid == userId;
+
+      allow update: if isSelf(userId)
+        && request.resource.data.uid == resource.data.uid;
+
+      allow delete: if false;
+
+      match /questStates/{questStateId} {
+        allow get, list, create, update, delete: if isSelf(userId);
+      }
+
+      match /journalEntries/{journalEntryId} {
+        allow get, list, create, update, delete: if isSelf(userId);
+      }
+
+      match /questFeedback/{feedbackId} {
+        allow get, list, create, update, delete: if isSelf(userId);
+      }
+    }
+
+    match /sharedStreaks/{streakId} {
+      allow get, list: if isSharedStreakMember();
+
+      allow create: if signedIn()
+        && request.resource.data.id == streakId
+        && request.resource.data.invitedByUid == request.auth.uid
+        && hasTwoSharedStreakMembers()
+        && isSharedStreakMemberAfterWrite()
+        && validSharedStreakStatus()
+        && request.resource.data.status == 'Pending';
+
+      allow update: if isSharedStreakMember()
+        && isSharedStreakMemberAfterWrite()
+        && hasTwoSharedStreakMembers()
+        && sharedStreakMembersDoNotChange()
+        && validSharedStreakStatus();
+
+      allow delete: if false;
+    }
+
+    match /quests/{questId} {
+      allow get, list: if signedIn();
+      allow write: if false;
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read, list, update, delete: if false;
+    }
+
+    match /quest_suggestions/{suggestionId} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read, list, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ListenerRegistration
 import com.nhlstenden.momentum.data.model.FriendStreak
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakLogic
@@ -65,8 +66,16 @@ class SharedStreakViewModel(
     /** False when running without an account — shared streaks need a signed-in user. */
     val isSignedIn: Boolean get() = auth.currentUser != null
 
+    private var streakListener: ListenerRegistration? = null
+    private val friendListeners = mutableMapOf<String, ListenerRegistration>()
+    private val friendStreaksById = mutableMapOf<String, FriendStreak>()
+
     init {
-        load()
+        observeStreaks()
+    }
+
+    fun refresh() {
+        observeStreaks()
     }
 
     fun load() {
@@ -93,6 +102,36 @@ class SharedStreakViewModel(
             }
             isLoading = false
         }
+    }
+
+    private fun observeStreaks() {
+        val uid = auth.currentUser?.uid
+        streakListener?.remove()
+        streakListener = null
+        clearFriendListeners()
+
+        if (uid == null) {
+            activeStreaks = emptyList()
+            incomingInvitations = emptyList()
+            outgoingInvitations = emptyList()
+            friendStreaks = emptyList()
+            return
+        }
+
+        isLoading = true
+        loadError = null
+        streakListener = sharedStreakRepository.observeStreaksForUser(
+            uid = uid,
+            onChange = { streaks ->
+                isLoading = false
+                loadError = null
+                applyStreaks(uid, streaks)
+            },
+            onError = {
+                isLoading = false
+                loadError = "We couldn't keep your shared streaks in sync. Try refreshing."
+            }
+        )
     }
 
     fun invite(email: String) {
@@ -151,7 +190,7 @@ class SharedStreakViewModel(
                 }
             }.onSuccess {
                 inviteSuccess = "Invitation sent to ${friend.displayName.ifBlank { normalizedEmail }}."
-                load()
+                refresh()
             }.onFailure {
                 inviteError = "We couldn't send the invitation. Please try again."
             }
@@ -175,7 +214,7 @@ class SharedStreakViewModel(
                     sharedStreakRepository.respondToInvitation(streakId, accepted)
                 }
             }.onSuccess {
-                load()
+                refresh()
             }.onFailure {
                 loadError = "We couldn't update that invitation. Please try again."
             }
@@ -210,34 +249,63 @@ class SharedStreakViewModel(
         incomingInvitations = incoming
         outgoingInvitations = outgoing
 
-        // Connected friends are the other members of active streaks; load each one's
-        // own personal streak so the user can see how their friends are doing.
+        // Connected friends are the other members of active streaks; observe each one's
+        // own personal streak so the user can see live progress changes.
         val friendIds = evaluatedActive.mapNotNull { it.otherMemberId(uid) }.distinct()
-        loadFriendStreaks(friendIds)
+        observeFriendStreaks(friendIds)
     }
 
-    /** Fetches each connected friend's individual streak from their user document. */
-    private fun loadFriendStreaks(friendIds: List<String>) {
+    /** Observes each connected friend's individual streak from their user document. */
+    private fun observeFriendStreaks(friendIds: List<String>) {
         if (friendIds.isEmpty()) {
+            clearFriendListeners()
             friendStreaks = emptyList()
             return
         }
 
-        viewModelScope.launch {
-            val loaded = friendIds.mapNotNull { friendId ->
-                val friend = runCatching {
-                    withTimeout(FIRESTORE_TIMEOUT_MS) { userRepository.getUser(friendId) }
-                }.getOrNull() ?: return@mapNotNull null
-
-                FriendStreak(
-                    uid = friend.uid,
-                    displayName = friend.displayName.ifBlank { friend.email.substringBefore("@") },
-                    currentStreak = friend.progress.currentStreak,
-                    lastQuestCompletionDate = friend.progress.lastQuestCompletionDate
-                )
+        val expectedIds = friendIds.toSet()
+        friendListeners
+            .filterKeys { it !in expectedIds }
+            .toList()
+            .forEach { (friendId, listener) ->
+                listener.remove()
+                friendListeners.remove(friendId)
+                friendStreaksById.remove(friendId)
             }
-            friendStreaks = loaded.sortedByDescending { it.currentStreak }
+
+        friendIds.forEach { friendId ->
+            if (friendId in friendListeners) return@forEach
+
+            friendListeners[friendId] = userRepository.observeUser(
+                uid = friendId,
+                onChange = { friend ->
+                    if (friend == null) {
+                        friendStreaksById.remove(friendId)
+                    } else {
+                        friendStreaksById[friendId] = FriendStreak(
+                            uid = friend.uid,
+                            displayName = friend.displayName.ifBlank { friend.email.substringBefore("@") },
+                            currentStreak = friend.progress.currentStreak,
+                            lastQuestCompletionDate = friend.progress.lastQuestCompletionDate
+                        )
+                    }
+                    publishFriendStreaks()
+                },
+                onError = {
+                    loadError = "We couldn't keep a friend's streak in sync. Try refreshing."
+                }
+            )
         }
+    }
+
+    private fun publishFriendStreaks() {
+        friendStreaks = friendStreaksById.values.sortedByDescending { it.currentStreak }
+    }
+
+    private fun clearFriendListeners() {
+        friendListeners.values.forEach { it.remove() }
+        friendListeners.clear()
+        friendStreaksById.clear()
     }
 
     private fun persist(streak: SharedStreak) {
@@ -246,6 +314,13 @@ class SharedStreakViewModel(
                 withTimeout(FIRESTORE_TIMEOUT_MS) { sharedStreakRepository.updateStreak(streak) }
             }
         }
+    }
+
+    override fun onCleared() {
+        streakListener?.remove()
+        streakListener = null
+        clearFriendListeners()
+        super.onCleared()
     }
 
     private companion object {
