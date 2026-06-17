@@ -1,12 +1,16 @@
 package com.nhlstenden.momentum.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.nhlstenden.momentum.data.model.User
 import com.nhlstenden.momentum.data.model.UserProgress
 import kotlinx.coroutines.tasks.await
+import java.util.Locale
 
 interface UserRepository {
     suspend fun getUser(uid: String): User?
+    suspend fun findByEmail(email: String): User?
+    fun observeUser(uid: String, onChange: (User?) -> Unit, onError: (Throwable) -> Unit): ListenerRegistration
     suspend fun saveUser(user: User)
     suspend fun updateDisplayName(uid: String, displayName: String)
     suspend fun updateInterests(uid: String, interests: List<String>)
@@ -18,6 +22,18 @@ class InMemoryUserRepository : UserRepository {
     private val users = mutableMapOf<String, User>()
 
     override suspend fun getUser(uid: String): User? = users[uid]
+
+    override suspend fun findByEmail(email: String): User? =
+        users.values.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
+
+    override fun observeUser(
+        uid: String,
+        onChange: (User?) -> Unit,
+        onError: (Throwable) -> Unit
+    ): ListenerRegistration {
+        onChange(users[uid])
+        return ListenerRegistration {}
+    }
 
     override suspend fun saveUser(user: User) {
         users[user.uid] = user
@@ -45,19 +61,51 @@ class FirestoreUserRepository(
 ) : UserRepository {
     override suspend fun getUser(uid: String): User? {
         val document = firestore.collection("users").document(uid).get().await()
-        if (!document.exists()) return null
-
-        val progressMap = document.get("progress") as? Map<*, *>
-        return User(
-            uid = uid,
-            displayName = document.getString("displayName").orEmpty(),
-            email = document.getString("email").orEmpty(),
-            interests = document.get("interests").toStringList(),
-            notificationEnabled = document.getBoolean("notificationEnabled") ?: false,
-            progress = progressMap.toUserProgress(),
-            onboardingCompleted = document.getBoolean("onboardingCompleted") ?: false
-        )
+        return document.toUser(uid)
     }
+
+    override suspend fun findByEmail(email: String): User? {
+        val normalized = email.trim()
+        if (normalized.isEmpty()) return null
+        val normalizedLower = normalized.lowercase(Locale.US)
+
+        val snapshot = firestore.collection("users")
+            .whereEqualTo("emailLowercase", normalizedLower)
+            .limit(1)
+            .get()
+            .await()
+
+        val document = snapshot.documents.firstOrNull()
+            ?: firestore.collection("users")
+                .whereEqualTo("email", normalized)
+                .limit(1)
+                .get()
+                .await()
+                .documents
+                .firstOrNull()
+            ?: firestore.collection("users")
+                .get()
+                .await()
+                .documents
+                .firstOrNull { it.getString("email").orEmpty().equals(normalized, ignoreCase = true) }
+            ?: return null
+        return document.toUser(document.id)
+    }
+
+    override fun observeUser(
+        uid: String,
+        onChange: (User?) -> Unit,
+        onError: (Throwable) -> Unit
+    ): ListenerRegistration =
+        firestore.collection("users")
+            .document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onError(error)
+                    return@addSnapshotListener
+                }
+                onChange(snapshot?.toUser(uid))
+            }
 
     override suspend fun saveUser(user: User) {
         firestore.collection("users")
@@ -99,11 +147,27 @@ private fun User.toFirestoreMap(): Map<String, Any?> = mapOf(
     "uid" to uid,
     "displayName" to displayName,
     "email" to email,
+    "emailLowercase" to email.trim().lowercase(Locale.US),
     "interests" to interests,
     "notificationEnabled" to notificationEnabled,
     "progress" to progress.toFirestoreMap(),
     "onboardingCompleted" to onboardingCompleted
 )
+
+private fun com.google.firebase.firestore.DocumentSnapshot.toUser(uid: String): User? {
+    if (!exists()) return null
+
+    val progressMap = get("progress") as? Map<*, *>
+    return User(
+        uid = uid,
+        displayName = getString("displayName").orEmpty(),
+        email = getString("email").orEmpty(),
+        interests = get("interests").toStringList(),
+        notificationEnabled = getBoolean("notificationEnabled") ?: false,
+        progress = progressMap.toUserProgress(),
+        onboardingCompleted = getBoolean("onboardingCompleted") ?: false
+    )
+}
 
 private fun UserProgress.toFirestoreMap(): Map<String, Any?> = mapOf(
     "currentStreak" to currentStreak,

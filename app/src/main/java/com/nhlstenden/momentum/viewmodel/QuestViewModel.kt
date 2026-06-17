@@ -28,6 +28,8 @@ import com.nhlstenden.momentum.data.repository.InMemoryReflectionRepository
 import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.data.repository.QuestRepository
 import com.nhlstenden.momentum.data.repository.ReflectionRepository
+import com.nhlstenden.momentum.data.repository.FirestoreSharedStreakRepository
+import com.nhlstenden.momentum.data.repository.SharedStreakRepository
 import com.nhlstenden.momentum.data.repository.UserRepository
 import com.nhlstenden.momentum.util.FriendlyErrorMessages
 import com.nhlstenden.momentum.util.toFriendlyQuestDataMessage
@@ -47,7 +49,8 @@ class QuestViewModel(
     private val fallbackQuestRepository: QuestRepository = PredefinedQuestRepository(),
     private val userRepository: UserRepository = FirestoreUserRepository(),
     private val reflectionRepository: ReflectionRepository = FirestoreReflectionRepository(),
-    private val demoReflectionRepository: ReflectionRepository = InMemoryReflectionRepository()
+    private val demoReflectionRepository: ReflectionRepository = InMemoryReflectionRepository(),
+    private val sharedStreakRepository: SharedStreakRepository = FirestoreSharedStreakRepository()
 ) : ViewModel() {
     private val dailyQuestLimit = 3
     private val today: String
@@ -505,6 +508,14 @@ class QuestViewModel(
             }
         }.onFailure {
             errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
+        }
+
+        // Record today's completion on every shared streak this user is part of, so a
+        // connected friend's shared streak advances once both of them finish today.
+        runCatching {
+            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                sharedStreakRepository.recordCompletion(uid, today)
+            }
         }
     }
 
