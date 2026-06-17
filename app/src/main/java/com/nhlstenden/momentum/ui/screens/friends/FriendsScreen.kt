@@ -152,9 +152,11 @@ private fun FriendsContent(
             )
         }
         activeStreaks.forEach { streak ->
+            val uid = currentUid
             SharedStreakRow(
-                name = currentUid?.let { streak.otherMemberName(it) } ?: "Friend",
+                name = uid?.let { streak.otherMemberName(it) } ?: "Friend",
                 streak = streak,
+                currentUid = uid,
                 bothDoneToday = streak.bothCompletedOn(SharedStreakLogic.today())
             )
         }
@@ -271,8 +273,14 @@ private fun InvitationRow(
 private fun SharedStreakRow(
     name: String,
     streak: SharedStreak,
+    currentUid: String?,
     bothDoneToday: Boolean
 ) {
+    val today = SharedStreakLogic.today()
+    val otherUid = currentUid?.let { streak.otherMemberId(it) }
+    val youDoneToday = currentUid?.let { streak.lastCompletionDates[it] == today } == true
+    val friendDoneToday = otherUid?.let { streak.lastCompletionDates[it] == today } == true
+
     MomentumCard {
         Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -290,14 +298,24 @@ private fun SharedStreakRow(
                     MomentumChip("new", variant = ChipVariant.Reward)
                 }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MomentumChip(
+                    if (youDoneToday) "You done" else "You not yet",
+                    variant = if (youDoneToday) ChipVariant.Skills else ChipVariant.Neutral
+                )
+                MomentumChip(
+                    if (friendDoneToday) "Friend done" else "Friend not yet",
+                    variant = if (friendDoneToday) ChipVariant.Skills else ChipVariant.Neutral
+                )
+            }
             Text(
                 when {
                     streak.currentStreak == 0 ->
-                        "Complete a quest each on the same day to start your streak."
+                        "The shared count starts after you both complete one quest today."
                     bothDoneToday ->
-                        "You both completed a quest today — streak is safe. Keep it going!"
+                        "Both daily completions are in. The shared streak is safe today."
                     else ->
-                        "Both of you need to complete a quest today to keep the streak alive."
+                        "This is a shared streak, not a shared quest. Any completed quest counts."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -354,6 +372,7 @@ private fun FriendsPreview() {
                     memberNames = mapOf("me" to "You", "noor" to "Noor"),
                     status = SharedStreakStatus.Active,
                     currentStreak = 3,
+                    lastCompletionDates = mapOf("me" to SharedStreakLogic.today()),
                     lastIncrementDate = SharedStreakLogic.today()
                 )
             ),

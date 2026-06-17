@@ -86,9 +86,16 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
 
     override suspend fun respondToInvitation(streakId: String, accepted: Boolean) {
         val existing = streaks[streakId] ?: return
-        streaks[streakId] = existing.copy(
-            status = if (accepted) SharedStreakStatus.Active else SharedStreakStatus.Declined
-        )
+        streaks[streakId] = if (accepted) {
+            existing.copy(
+                status = SharedStreakStatus.Active,
+                currentStreak = 0,
+                lastCompletionDates = emptyMap(),
+                lastIncrementDate = null
+            )
+        } else {
+            existing.copy(status = SharedStreakStatus.Declined)
+        }
     }
 
     override suspend fun updateStreak(streak: SharedStreak) {
@@ -160,9 +167,17 @@ class FirestoreSharedStreakRepository(
 
     override suspend fun respondToInvitation(streakId: String, accepted: Boolean) {
         val status = if (accepted) SharedStreakStatus.Active else SharedStreakStatus.Declined
-        collection.document(streakId)
-            .update("status", status.name)
-            .await()
+        val updates = if (accepted) {
+            mapOf(
+                "status" to status.name,
+                "currentStreak" to 0,
+                "lastCompletionDates" to emptyMap<String, String>(),
+                "lastIncrementDate" to null
+            )
+        } else {
+            mapOf("status" to status.name)
+        }
+        collection.document(streakId).update(updates).await()
     }
 
     override suspend fun updateStreak(streak: SharedStreak) {
