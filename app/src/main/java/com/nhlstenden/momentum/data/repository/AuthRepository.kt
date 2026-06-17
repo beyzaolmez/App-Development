@@ -92,9 +92,8 @@ class AuthRepository(
      * Deletes the current user's account from Firebase Auth and Firestore.
      *
      * Cleanup order (all while still authenticated, since the rules require it):
-     *  1. Best-effort removal of user-linked top-level data (shared streaks,
-     *     feedback, quest suggestions). These are best-effort so a hiccup here
-     *     never blocks the critical account removal below.
+     *  1. Removal of user-linked top-level data (shared streaks, feedback,
+     *     quest suggestions).
      *  2. The user document and its private subcollections.
      *  3. The Firebase Auth user, last, so the account can no longer sign in.
      *
@@ -105,8 +104,8 @@ class AuthRepository(
         val uid = user.uid
 
         return runCatching {
-            // 1. Best-effort cleanup of top-level data linked to this user.
-            runCatching { deleteUserLinkedData(uid) }
+            // 1. Cleanup top-level data linked to this user.
+            deleteUserLinkedData(uid)
 
             // 2. Delete the user document and its private subcollections.
             userRepository.deleteUser(uid)
