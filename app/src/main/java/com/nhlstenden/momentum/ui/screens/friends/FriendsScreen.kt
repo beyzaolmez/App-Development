@@ -54,6 +54,7 @@ fun FriendsScreen(
         friendStreaks = viewModel.friendStreaks,
         incomingInvitations = viewModel.incomingInvitations,
         outgoingInvitations = viewModel.outgoingInvitations,
+        declinedInvitations = viewModel.declinedInvitations,
         inviteEmail = inviteEmail,
         onInviteEmailChange = {
             inviteEmail = it
@@ -81,6 +82,7 @@ private fun FriendsContent(
     friendStreaks: List<FriendStreak>,
     incomingInvitations: List<SharedStreak>,
     outgoingInvitations: List<SharedStreak>,
+    declinedInvitations: List<SharedStreak>,
     inviteEmail: String,
     onInviteEmailChange: (String) -> Unit,
     inviteInProgress: Boolean,
@@ -179,6 +181,30 @@ private fun FriendsContent(
                         )
                     }
                     MomentumChip("Pending", variant = ChipVariant.Neutral)
+                }
+            }
+        }
+
+        // ---- Declined invitations ----
+        declinedInvitations.forEach { streak ->
+            MomentumCard {
+                Row(
+                    modifier = it,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            currentUid?.let { uid -> streak.otherMemberName(uid) } ?: "Friend",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            "Invitation declined",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    MomentumChip("Declined", variant = ChipVariant.Neutral)
                 }
             }
         }
@@ -337,6 +363,7 @@ private fun FriendsPreview() {
                 )
             ),
             outgoingInvitations = emptyList(),
+            declinedInvitations = emptyList(),
             inviteEmail = "",
             onInviteEmailChange = {},
             inviteInProgress = false,
