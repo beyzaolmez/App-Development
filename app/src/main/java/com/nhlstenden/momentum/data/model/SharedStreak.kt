@@ -3,6 +3,7 @@ package com.nhlstenden.momentum.data.model
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 /**
  * A streak shared between exactly two connected users. Both people must complete
@@ -51,15 +52,27 @@ enum class SharedStreakStatus { Pending, Active, Declined }
  */
 object SharedStreakLogic {
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+        isLenient = false  // Strict parsing - reject invalid dates like "2024-13-45"
+    }
 
-    fun today(): String = dateFormat.format(Calendar.getInstance().time)
+    private val datePattern = Regex("^\\d{4}-\\d{2}-\\d{2}$")
 
-    /** The calendar day immediately before [date] (expects "yyyy-MM-dd"). */
+    /** Validates that [date] is in "yyyy-MM-dd" format and represents a real calendar date. */
+    fun isValidDate(date: String): Boolean {
+        if (!datePattern.matches(date)) return false
+        return runCatching { dateFormat.parse(date) }.isSuccess
+    }
+
+    /** Returns today's date in UTC ("yyyy-MM-dd") for consistent cross-timezone streak calculation. */
+    fun today(): String = dateFormat.format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
+
+    /** The calendar day immediately before [date] (expects "yyyy-MM-dd"). Returns [date] if invalid. */
     fun previousDay(date: String): String {
-        val parsed = runCatching { dateFormat.parse(date) }.getOrNull()
-            ?: return date
-        val calendar = Calendar.getInstance().apply {
+        if (!isValidDate(date)) return date
+        val parsed = dateFormat.parse(date) ?: return date
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             time = parsed
             add(Calendar.DAY_OF_YEAR, -1)
         }

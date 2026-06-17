@@ -39,6 +39,10 @@ class SharedStreakViewModel(
     var outgoingInvitations by mutableStateOf<List<SharedStreak>>(emptyList())
         private set
 
+    /** Invitations I sent that were declined by the other person. */
+    var declinedInvitations by mutableStateOf<List<SharedStreak>>(emptyList())
+        private set
+
     /**
      * Each connected friend's own individual streak, so the user can see how their
      * friends are doing. A "connected friend" is the other member of an Active shared
@@ -75,7 +79,9 @@ class SharedStreakViewModel(
             activeStreaks = emptyList()
             incomingInvitations = emptyList()
             outgoingInvitations = emptyList()
+            declinedInvitations = emptyList()
             friendStreaks = emptyList()
+            isLoading = false
             return
         }
 
@@ -128,8 +134,14 @@ class SharedStreakViewModel(
                 return@launch
             }
 
-            val alreadyConnected = (activeStreaks + incomingInvitations + outgoingInvitations)
-                .any { friend.uid in it.memberIds }
+            // Atomic check via Firestore to prevent race conditions when two devices
+            // try to invite the same person simultaneously
+            val alreadyConnected = runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) {
+                    sharedStreakRepository.hasExistingStreakWithUser(inviterUid, friend.uid)
+                }
+            }.getOrDefault(false)
+
             if (alreadyConnected) {
                 inviteError = "You already have a shared streak or pending invite with ${friend.displayName.ifBlank { "this friend" }}."
                 inviteInProgress = false
@@ -183,7 +195,7 @@ class SharedStreakViewModel(
     }
 
     /**
-     * Splits loaded streaks into the three UI buckets and re-evaluates active ones for
+     * Splits loaded streaks into the UI buckets and re-evaluates active ones for
      * today. When evaluating breaks a streak (count reset to 0), the reset is persisted
      * so both members see the broken state consistently.
      */
@@ -192,6 +204,7 @@ class SharedStreakViewModel(
         val evaluatedActive = mutableListOf<SharedStreak>()
         val incoming = mutableListOf<SharedStreak>()
         val outgoing = mutableListOf<SharedStreak>()
+        val declined = mutableListOf<SharedStreak>()
 
         streaks.forEach { streak ->
             when (streak.status) {
@@ -202,13 +215,15 @@ class SharedStreakViewModel(
                 }
                 SharedStreakStatus.Pending ->
                     if (streak.invitedByUid == uid) outgoing += streak else incoming += streak
-                SharedStreakStatus.Declined -> Unit
+                SharedStreakStatus.Declined ->
+                    if (streak.invitedByUid == uid) declined += streak
             }
         }
 
         activeStreaks = evaluatedActive.sortedByDescending { it.currentStreak }
         incomingInvitations = incoming
         outgoingInvitations = outgoing
+        declinedInvitations = declined
 
         // Connected friends are the other members of active streaks; load each one's
         // own personal streak so the user can see how their friends are doing.
@@ -216,27 +231,41 @@ class SharedStreakViewModel(
         loadFriendStreaks(friendIds)
     }
 
+    /** Tracks friend IDs that failed to load so the UI can optionally show a warning. */
+    var failedFriendIds by mutableStateOf<Set<String>>(emptySet())
+        private set
+
     /** Fetches each connected friend's individual streak from their user document. */
     private fun loadFriendStreaks(friendIds: List<String>) {
         if (friendIds.isEmpty()) {
             friendStreaks = emptyList()
+            failedFriendIds = emptySet()
             return
         }
 
         viewModelScope.launch {
-            val loaded = friendIds.mapNotNull { friendId ->
-                val friend = runCatching {
-                    withTimeout(FIRESTORE_TIMEOUT_MS) { userRepository.getUser(friendId) }
-                }.getOrNull() ?: return@mapNotNull null
+            val loaded = mutableListOf<FriendStreak>()
+            val failed = mutableSetOf<String>()
 
-                FriendStreak(
-                    uid = friend.uid,
-                    displayName = friend.displayName.ifBlank { friend.email.substringBefore("@") },
-                    currentStreak = friend.progress.currentStreak,
-                    lastQuestCompletionDate = friend.progress.lastQuestCompletionDate
-                )
+            friendIds.forEach { friendId ->
+                val result = runCatching {
+                    withTimeout(FIRESTORE_TIMEOUT_MS) { userRepository.getUser(friendId) }
+                }
+
+                result.getOrNull()?.let { friend ->
+                    loaded += FriendStreak(
+                        uid = friend.uid,
+                        displayName = friend.displayName.ifBlank { friend.email.substringBefore("@") },
+                        currentStreak = friend.progress.currentStreak,
+                        lastQuestCompletionDate = friend.progress.lastQuestCompletionDate
+                    )
+                } ?: run {
+                    failed += friendId
+                }
             }
+
             friendStreaks = loaded.sortedByDescending { it.currentStreak }
+            failedFriendIds = failed
         }
     }
 

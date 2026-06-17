@@ -34,6 +34,12 @@ interface SharedStreakRepository {
      * belong to, advancing each one when both members are done for the day.
      */
     suspend fun recordCompletion(uid: String, today: String = SharedStreakLogic.today())
+
+    /**
+     * Checks if there is already an active or pending streak between uid1 and uid2.
+     * Used to prevent duplicate invitations.
+     */
+    suspend fun hasExistingStreakWithUser(uid1: String, uid2: String): Boolean
 }
 
 class InMemorySharedStreakRepository : SharedStreakRepository {
@@ -79,6 +85,12 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
                 streaks[streak.id] = SharedStreakLogic.recordCompletion(streak, uid, today)
             }
     }
+
+    override suspend fun hasExistingStreakWithUser(uid1: String, uid2: String): Boolean =
+        streaks.values.any {
+            uid1 in it.memberIds && uid2 in it.memberIds &&
+                (it.status == SharedStreakStatus.Active || it.status == SharedStreakStatus.Pending)
+        }
 }
 
 class FirestoreSharedStreakRepository(
@@ -128,19 +140,44 @@ class FirestoreSharedStreakRepository(
     }
 
     override suspend fun recordCompletion(uid: String, today: String) {
-        val active = collection
+        // Use a transaction to prevent race conditions when both users complete
+        // quests simultaneously. The transaction ensures atomic read-modify-write.
+        val streakRefs = collection
             .whereArrayContains("memberIds", uid)
             .get()
             .await()
             .documents
-            .mapNotNull { it.toSharedStreak() }
-            .filter { it.status == SharedStreakStatus.Active }
+            .filter { it.getString("status") == SharedStreakStatus.Active.name }
+            .map { it.reference }
 
-        active.forEach { streak ->
-            val updated = SharedStreakLogic.recordCompletion(streak, uid, today)
-            if (updated != streak) {
-                updateStreak(updated)
-            }
+        streakRefs.forEach { streakRef ->
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(streakRef)
+                if (!snapshot.exists()) return@runTransaction
+
+                val streak = snapshot.toSharedStreak()
+                    ?.takeIf { it.status == SharedStreakStatus.Active && uid in it.memberIds }
+                    ?: return@runTransaction
+
+                val updated = SharedStreakLogic.recordCompletion(streak, uid, today)
+                if (updated != streak) {
+                    transaction.set(streakRef, updated.toFirestoreMap())
+                }
+            }.await()
+        }
+    }
+
+    override suspend fun hasExistingStreakWithUser(uid1: String, uid2: String): Boolean {
+        // Query for any streak where both users are members and status is Active or Pending
+        val snapshot = collection
+            .whereArrayContains("memberIds", uid1)
+            .get()
+            .await()
+
+        return snapshot.documents.any { doc ->
+            val memberIds = (doc.get("memberIds") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
+            val status = doc.getString("status")
+            uid2 in memberIds && (status == SharedStreakStatus.Active.name || status == SharedStreakStatus.Pending.name)
         }
     }
 
