@@ -75,7 +75,8 @@ service cloud.firestore {
         && sharedStreakMembersDoNotChange()
         && validSharedStreakStatus();
 
-      allow delete: if false;
+      // A member may delete the shared streak, e.g. when deleting their account.
+      allow delete: if isSharedStreakMember();
     }
 
     match /quests/{questId} {
@@ -83,16 +84,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // FEEDBACK: any signed-in user can submit. No general client reads, but the
+    // author may list and delete their own entries (needed for account deletion).
     match /feedback/{feedbackId} {
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid;
-      allow read, list, update, delete: if false;
+      allow list, delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
+      allow get, update: if false;
     }
 
+    // QUEST SUGGESTIONS: same policy as feedback — author may clean up their own.
     match /quest_suggestions/{suggestionId} {
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid;
-      allow read, list, update, delete: if false;
+      allow list, delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
+      allow get, update: if false;
     }
 
     match /{document=**} {
