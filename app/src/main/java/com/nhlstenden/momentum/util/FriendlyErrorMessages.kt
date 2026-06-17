@@ -118,3 +118,17 @@ fun Throwable.toFriendlyPasswordResetMessage(): String =
         errorCode = (this as? FirebaseAuthException)?.errorCode,
         rawMessage = localizedMessage
     )
+
+/** Maps any exception to friendly copy for friend system operations. */
+fun Throwable.toFriendlyFriendMessage(): String {
+    val diagnostic = localizedMessage.orEmpty().uppercase()
+    return when {
+        "NETWORK" in diagnostic || "UNAVAILABLE" in diagnostic ->
+            "Can't reach the network. Check your connection and try again."
+        "PERMISSION_DENIED" in diagnostic ->
+            "You don't have permission to do that. Please try again."
+        "NOT_FOUND" in diagnostic ->
+            "User not found. Please check the email and try again."
+        else -> "Something went wrong. Please try again."
+    }
+}

@@ -21,7 +21,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nhlstenden.momentum.data.model.Friendship
+import com.nhlstenden.momentum.data.model.FriendshipStatus
 import com.nhlstenden.momentum.data.model.FriendStreak
+import com.nhlstenden.momentum.data.model.FriendUser
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakLogic
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
@@ -35,41 +38,61 @@ import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.components.MomentumTextField
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.viewmodel.FriendViewModel
 import com.nhlstenden.momentum.viewmodel.SharedStreakViewModel
 
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit = {},
-    viewModel: SharedStreakViewModel = viewModel()
+    sharedStreakViewModel: SharedStreakViewModel = viewModel(),
+    friendViewModel: FriendViewModel = viewModel()
 ) {
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     var inviteEmail by remember { mutableStateOf("") }
 
     FriendsContent(
         currentUid = currentUid,
-        isSignedIn = viewModel.isSignedIn,
-        isLoading = viewModel.isLoading,
-        loadError = viewModel.loadError,
-        activeStreaks = viewModel.activeStreaks,
-        friendStreaks = viewModel.friendStreaks,
-        incomingInvitations = viewModel.incomingInvitations,
-        outgoingInvitations = viewModel.outgoingInvitations,
-        declinedInvitations = viewModel.declinedInvitations,
+        isSignedIn = sharedStreakViewModel.isSignedIn,
+        isLoading = sharedStreakViewModel.isLoading,
+        loadError = sharedStreakViewModel.loadError,
+        activeStreaks = sharedStreakViewModel.activeStreaks,
+        friendStreaks = sharedStreakViewModel.friendStreaks,
+        incomingInvitations = sharedStreakViewModel.incomingInvitations,
+        outgoingInvitations = sharedStreakViewModel.outgoingInvitations,
+        declinedInvitations = sharedStreakViewModel.declinedInvitations,
         inviteEmail = inviteEmail,
         onInviteEmailChange = {
             inviteEmail = it
-            viewModel.clearInviteFeedback()
+            sharedStreakViewModel.clearInviteFeedback()
         },
-        inviteInProgress = viewModel.inviteInProgress,
-        inviteError = viewModel.inviteError,
-        inviteSuccess = viewModel.inviteSuccess,
+        inviteInProgress = sharedStreakViewModel.inviteInProgress,
+        inviteError = sharedStreakViewModel.inviteError,
+        inviteSuccess = sharedStreakViewModel.inviteSuccess,
         onSendInvite = {
-            viewModel.invite(inviteEmail)
+            sharedStreakViewModel.invite(inviteEmail)
         },
-        onRefresh = viewModel::refresh,
-        onAccept = viewModel::accept,
-        onDecline = viewModel::decline,
-        onBack = onBack
+        onRefresh = sharedStreakViewModel::refresh,
+        onAccept = sharedStreakViewModel::accept,
+        onDecline = sharedStreakViewModel::decline,
+        onBack = onBack,
+        // Friend system
+        friendSearchQuery = friendViewModel.searchQuery,
+        onSearchQueryChange = friendViewModel::updateSearchQuery,
+        onSearchUsers = friendViewModel::searchUsers,
+        searchResults = friendViewModel.searchResults,
+        isSearching = friendViewModel.isSearching,
+        onSendFriendRequest = friendViewModel::sendFriendRequest,
+        incomingFriendRequests = friendViewModel.incomingRequests,
+        outgoingFriendRequests = friendViewModel.outgoingRequests,
+        acceptedFriends = friendViewModel.acceptedFriends,
+        onAcceptFriendRequest = friendViewModel::acceptRequest,
+        onDeclineFriendRequest = friendViewModel::declineRequest,
+        onCancelFriendRequest = friendViewModel::cancelRequest,
+        onRemoveFriend = friendViewModel::removeFriend,
+        friendError = friendViewModel.errorMessage,
+        friendSuccess = friendViewModel.successMessage,
+        onClearFriendError = friendViewModel::clearError,
+        onClearFriendSuccess = friendViewModel::clearSuccess
     )
 }
 
@@ -93,7 +116,25 @@ private fun FriendsContent(
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onDecline: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // Friend system parameters
+    friendSearchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchUsers: () -> Unit,
+    searchResults: List<FriendUser>,
+    isSearching: Boolean,
+    onSendFriendRequest: (FriendUser) -> Unit,
+    incomingFriendRequests: List<Friendship>,
+    outgoingFriendRequests: List<Friendship>,
+    acceptedFriends: List<Friendship>,
+    onAcceptFriendRequest: (String) -> Unit,
+    onDeclineFriendRequest: (String) -> Unit,
+    onCancelFriendRequest: (String) -> Unit,
+    onRemoveFriend: (String) -> Unit,
+    friendError: String?,
+    friendSuccess: String?,
+    onClearFriendError: () -> Unit,
+    onClearFriendSuccess: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -123,6 +164,108 @@ private fun FriendsContent(
         if (loadError != null) {
             MomentumInlineError(loadError)
         }
+
+        // ============================================
+        // FRIEND SYSTEM SECTION
+        // ============================================
+
+        Text("Find friends", style = MaterialTheme.typography.titleLarge)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            MomentumTextField(
+                value = friendSearchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = "Search by name or email",
+                modifier = Modifier.weight(1f)
+            )
+            MomentumSecondaryButton(
+                text = if (isSearching) "..." else "Search",
+                onClick = onSearchUsers,
+                enabled = !isSearching && friendSearchQuery.isNotBlank()
+            )
+        }
+
+        // Search results
+        if (searchResults.isNotEmpty()) {
+            Text("Search results", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            searchResults.forEach { user ->
+                SearchResultRow(
+                    user = user,
+                    onAddFriend = { onSendFriendRequest(user) }
+                )
+            }
+        }
+
+        if (friendSuccess != null) {
+            Text(
+                friendSuccess,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        if (friendError != null) {
+            MomentumInlineError(friendError)
+        }
+
+        // ---- Incoming friend requests ----
+        if (incomingFriendRequests.isNotEmpty()) {
+            Text("Friend requests", style = MaterialTheme.typography.titleLarge)
+            incomingFriendRequests.forEach { request ->
+                FriendRequestRow(
+                    name = request.requesterName,
+                    onAccept = { onAcceptFriendRequest(request.id) },
+                    onDecline = { onDeclineFriendRequest(request.id) }
+                )
+            }
+        }
+
+        // ---- Friends list ----
+        Text("My friends (${acceptedFriends.size})", style = MaterialTheme.typography.titleLarge)
+        if (acceptedFriends.isEmpty() && outgoingFriendRequests.isEmpty()) {
+            MomentumStatusCard(
+                title = "No friends yet",
+                message = "Search for users above to add friends and connect socially.",
+                variant = ChipVariant.Neutral
+            )
+        }
+        acceptedFriends.forEach { friendship ->
+            val friendName = if (friendship.requesterUid == currentUid) friendship.recipientName else friendship.requesterName
+            FriendListRow(
+                name = friendName,
+                onRemove = { onRemoveFriend(friendship.id) }
+            )
+        }
+
+        // ---- Outgoing friend requests ----
+        outgoingFriendRequests.forEach { request ->
+            MomentumCard {
+                Row(
+                    modifier = it,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            request.recipientName,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            "Friend request sent · waiting",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    MomentumChip("Pending", variant = ChipVariant.Neutral)
+                }
+            }
+        }
+
+        // ============================================
+        // SHARED STREAKS SECTION
+        // ============================================
+
         MomentumSecondaryButton(
             text = if (isLoading) "Refreshing..." else "Refresh streaks",
             onClick = onRefresh,
@@ -338,6 +481,77 @@ private fun FriendStreakRow(friend: FriendStreak) {
     }
 }
 
+// ============================================
+// FRIEND SYSTEM COMPOSABLES
+// ============================================
+
+@Composable
+private fun SearchResultRow(
+    user: FriendUser,
+    onAddFriend: () -> Unit
+) {
+    MomentumCard {
+        Row(
+            modifier = it,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(user.displayName, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    user.email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            MomentumPrimaryButton("Add friend", onAddFriend)
+        }
+    }
+}
+
+@Composable
+private fun FriendRequestRow(
+    name: String,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
+) {
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(name, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "wants to be friends with you.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MomentumPrimaryButton("Accept", onAccept, Modifier.weight(1f))
+                MomentumSecondaryButton("Decline", onDecline, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FriendListRow(
+    name: String,
+    onRemove: () -> Unit
+) {
+    MomentumCard {
+        Row(
+            modifier = it,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleLarge)
+            }
+            MomentumQuietButton("Remove", onRemove)
+        }
+    }
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun FriendsPreview() {
@@ -381,7 +595,46 @@ private fun FriendsPreview() {
             onRefresh = {},
             onAccept = {},
             onDecline = {},
-            onBack = {}
+            onBack = {},
+            // Friend system preview params
+            friendSearchQuery = "",
+            onSearchQueryChange = {},
+            onSearchUsers = {},
+            searchResults = listOf(
+                FriendUser(uid = "alex", displayName = "Alex Johnson", email = "alex@example.com")
+            ),
+            isSearching = false,
+            onSendFriendRequest = {},
+            incomingFriendRequests = listOf(
+                Friendship(
+                    id = "fr1",
+                    requesterUid = "jordan",
+                    requesterName = "Jordan Smith",
+                    recipientUid = "me",
+                    recipientName = "You",
+                    status = FriendshipStatus.Pending
+                )
+            ),
+            outgoingFriendRequests = emptyList(),
+            acceptedFriends = listOf(
+                Friendship(
+                    id = "fr2",
+                    requesterUid = "me",
+                    requesterName = "You",
+                    recipientUid = "taylor",
+                    recipientName = "Taylor Brown",
+                    status = FriendshipStatus.Accepted,
+                    acceptedAt = System.currentTimeMillis()
+                )
+            ),
+            onAcceptFriendRequest = {},
+            onDeclineFriendRequest = {},
+            onCancelFriendRequest = {},
+            onRemoveFriend = {},
+            friendError = null,
+            friendSuccess = null,
+            onClearFriendError = {},
+            onClearFriendSuccess = {}
         )
     }
 }
