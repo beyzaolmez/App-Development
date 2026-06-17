@@ -78,6 +78,41 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    function isFriendshipParticipant() {
+      return signedIn()
+        && (request.auth.uid == resource.data.requesterUid
+            || request.auth.uid == resource.data.recipientUid);
+    }
+
+    function isFriendshipParticipantAfterWrite() {
+      return signedIn()
+        && (request.auth.uid == request.resource.data.requesterUid
+            || request.auth.uid == request.resource.data.recipientUid);
+    }
+
+    function friendshipParticipantsDoNotChange() {
+      return request.resource.data.requesterUid == resource.data.requesterUid
+        && request.resource.data.recipientUid == resource.data.recipientUid;
+    }
+
+    // FRIENDSHIPS: social connections between two users. Only the requester or
+    // recipient can read, update, or delete a friendship record. Anyone signed
+    // in can create a request, but only as the requester and in a Pending state.
+    match /friendships/{friendshipId} {
+      allow get, list: if isFriendshipParticipant();
+
+      allow create: if signedIn()
+        && request.resource.data.id == friendshipId
+        && request.resource.data.requesterUid == request.auth.uid
+        && request.resource.data.status == 'Pending';
+
+      allow update: if isFriendshipParticipant()
+        && isFriendshipParticipantAfterWrite()
+        && friendshipParticipantsDoNotChange();
+
+      allow delete: if isFriendshipParticipant();
+    }
+
     match /quests/{questId} {
       allow get, list: if signedIn();
       allow write: if false;

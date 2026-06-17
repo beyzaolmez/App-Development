@@ -241,23 +241,30 @@ private fun FriendsContent(
         // ---- Outgoing friend requests ----
         outgoingFriendRequests.forEach { request ->
             MomentumCard {
-                Row(
-                    modifier = it,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            request.recipientName,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            "Friend request sent · waiting",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                request.recipientName,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                "Friend request sent · waiting",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        MomentumChip("Pending", variant = ChipVariant.Neutral)
                     }
-                    MomentumChip("Pending", variant = ChipVariant.Neutral)
+                    MomentumQuietButton(
+                        "Cancel request",
+                        { onCancelFriendRequest(request.id) },
+                        Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

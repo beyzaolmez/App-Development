@@ -121,11 +121,20 @@ class FirestoreFriendRepository(
         val normalizedQuery = query.trim().lowercase(Locale.US)
         if (normalizedQuery.isEmpty()) return emptyList()
 
-        // Get all friendships involving current user to filter out existing friends
-        val friendshipsSnapshot = collection.get().await()
-        val existingFriendIds = friendshipsSnapshot.documents
+        // Only read friendships the current user is part of. Reading the whole
+        // collection would be denied by the security rules, which restrict reads
+        // to the requester/recipient of each friendship.
+        val sentSnapshot = collection
+            .whereEqualTo("requesterUid", currentUid)
+            .get()
+            .await()
+        val receivedSnapshot = collection
+            .whereEqualTo("recipientUid", currentUid)
+            .get()
+            .await()
+
+        val existingFriendIds = (sentSnapshot.documents + receivedSnapshot.documents)
             .mapNotNull { it.toFriendship() }
-            .filter { it.requesterUid == currentUid || it.recipientUid == currentUid }
             .map {
                 if (it.requesterUid == currentUid) it.recipientUid else it.requesterUid
             }
