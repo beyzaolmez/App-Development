@@ -25,7 +25,7 @@ class QuestLocalCache(context: Context) {
     fun saveQuestStates(uid: String, states: List<QuestState>) {
         val merged = (loadQuestStates(uid) + states)
             .groupBy { it.questStateId }
-            .map { (_, versions) -> versions.maxBy { it.status.persistenceRank } }
+            .map { (_, versions) -> versions.maxWith(compareBy<QuestState> { it.status.persistenceRank }.thenBy { it.currentProgress }) }
         prefs.edit().putString(statesKey(uid), JSONArray(merged.map { it.toJson() }).toString()).apply()
     }
 
@@ -55,6 +55,10 @@ class QuestLocalCache(context: Context) {
         .putNullable("startedAt", startedAt)
         .putNullable("completedAt", completedAt)
         .putNullable("skippedAt", skippedAt)
+        .put("currentProgress", currentProgress)
+        .put("targetProgress", targetProgress)
+        .put("progressUnit", progressUnit)
+        .putNullable("lastProgressUpdatedAt", lastProgressUpdatedAt)
 
     private fun JSONObject.toQuestState(): QuestState? {
         val questStateId = optString("questStateId").takeIf { it.isNotBlank() } ?: return null
@@ -68,7 +72,11 @@ class QuestLocalCache(context: Context) {
             isDailyAssigned = optBoolean("isDailyAssigned", false),
             startedAt = optNullableLong("startedAt"),
             completedAt = optNullableLong("completedAt"),
-            skippedAt = optNullableLong("skippedAt")
+            skippedAt = optNullableLong("skippedAt"),
+            currentProgress = optInt("currentProgress", 0),
+            targetProgress = optInt("targetProgress", 1).coerceAtLeast(1),
+            progressUnit = optString("progressUnit", "completion").takeIf { it.isNotBlank() } ?: "completion",
+            lastProgressUpdatedAt = optNullableLong("lastProgressUpdatedAt")
         )
     }
 

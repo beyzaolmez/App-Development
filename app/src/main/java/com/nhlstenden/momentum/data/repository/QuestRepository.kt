@@ -3,6 +3,7 @@ package com.nhlstenden.momentum.data.repository
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestDifficulty
+import com.nhlstenden.momentum.data.model.QuestGoalType
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
 import com.google.firebase.firestore.FirebaseFirestore
@@ -133,6 +134,23 @@ class PredefinedQuestRepository : QuestRepository {
                 "Schedule a specific time slot for each of the three."
             )
         ),
+        Quest(
+            id = "five-study-sessions",
+            title = "Complete 5 focused study sessions",
+            description = "Build a steady study rhythm across several days this week.",
+            category = QuestCategory.Focus,
+            xp = 350,
+            difficulty = QuestDifficulty.Hard,
+            estimatedMinutes = 25,
+            steps = listOf(
+                "Pick one course or skill to focus on.",
+                "Complete five separate focused sessions.",
+                "Log each session as progress when it is done."
+            ),
+            goalType = QuestGoalType.LongTerm,
+            targetProgress = 5,
+            progressUnit = "sessions"
+        ),
         // ── Wellbeing ─────────────────────────────────────────────────────────
         Quest(
             id = "mindful-reset",
@@ -191,6 +209,24 @@ class PredefinedQuestRepository : QuestRepository {
                 "Do one calming activity: read, stretch, or journal."
             ),
             journalPrompt = "What helped you slow down tonight?"
+        ),
+        Quest(
+            id = "reflection-streak",
+            title = "Write 3 reflection entries",
+            description = "Use short reflections to notice patterns in your week.",
+            category = QuestCategory.Wellbeing,
+            xp = 240,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 10,
+            steps = listOf(
+                "Choose a quiet moment after a quest or study block.",
+                "Write one honest reflection entry.",
+                "Repeat until you have saved three entries."
+            ),
+            journalPrompt = "What pattern did you notice while working toward this goal?",
+            goalType = QuestGoalType.LongTerm,
+            targetProgress = 3,
+            progressUnit = "entries"
         ),
         // ── Social ────────────────────────────────────────────────────────────
         Quest(
@@ -306,6 +342,23 @@ class PredefinedQuestRepository : QuestRepository {
                 "Warm up for 5 minutes before you push hard.",
                 "Cool down and stretch afterwards."
             )
+        ),
+        Quest(
+            id = "movement-month",
+            title = "Move for 10 days",
+            description = "Work toward a larger movement goal one day at a time.",
+            category = QuestCategory.Movement,
+            xp = 500,
+            difficulty = QuestDifficulty.Hard,
+            estimatedMinutes = 20,
+            steps = listOf(
+                "Choose any movement that fits your day.",
+                "Move for at least 20 minutes.",
+                "Record one day of progress after each session."
+            ),
+            goalType = QuestGoalType.LongTerm,
+            targetProgress = 10,
+            progressUnit = "days"
         )
     )
 
@@ -319,7 +372,7 @@ class PredefinedQuestRepository : QuestRepository {
     override suspend fun saveQuestState(uid: String, questState: QuestState) {
         val existingStates = questStatesByUser[uid].orEmpty()
         val existingState = existingStates.firstOrNull { it.questStateId == questState.questStateId }
-        if (existingState != null && existingState.status.isMoreFinalThan(questState.status)) return
+        if (existingState != null && existingState.isMoreFinalThan(questState)) return
 
         questStatesByUser[uid] = existingStates
             .filterNot { it.questStateId == questState.questStateId }
@@ -388,6 +441,9 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
     val xp = getLong("xp")?.toInt() ?: 0
     val steps = get("steps").toStringList()
     val journalPrompt = getString("journalPrompt")?.takeIf { it.isNotBlank() } ?: defaultJournalPrompt(id)
+    val goalType = getString("goalType").toQuestGoalType()
+    val targetProgress = getLong("targetProgress")?.toInt()?.coerceAtLeast(1) ?: 1
+    val progressUnit = getString("progressUnit")?.takeIf { it.isNotBlank() } ?: "completion"
 
     return Quest(
         id = id,
@@ -398,7 +454,10 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
         difficulty = difficulty,
         estimatedMinutes = estimatedMinutes,
         steps = steps,
-        journalPrompt = journalPrompt
+        journalPrompt = journalPrompt,
+        goalType = goalType,
+        targetProgress = targetProgress,
+        progressUnit = progressUnit
     )
 }
 
@@ -414,7 +473,11 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuestState(): Quest
         isDailyAssigned = getBoolean("isDailyAssigned") ?: false,
         startedAt = getLong("startedAt"),
         completedAt = getLong("completedAt"),
-        skippedAt = getLong("skippedAt")
+        skippedAt = getLong("skippedAt"),
+        currentProgress = getLong("currentProgress")?.toInt() ?: 0,
+        targetProgress = getLong("targetProgress")?.toInt()?.coerceAtLeast(1) ?: 1,
+        progressUnit = getString("progressUnit")?.takeIf { it.isNotBlank() } ?: "completion",
+        lastProgressUpdatedAt = getLong("lastProgressUpdatedAt")
     )
 }
 
@@ -427,6 +490,9 @@ private fun Quest.toQuestFirestoreMap(): Map<String, Any?> = mapOf(
     "xp" to xp,
     "steps" to steps,
     "journalPrompt" to journalPrompt,
+    "goalType" to goalType.name,
+    "targetProgress" to targetProgress,
+    "progressUnit" to progressUnit,
     "isActive" to true
 )
 
@@ -445,7 +511,11 @@ private fun QuestState.toFirestoreMap(): Map<String, Any?> = mapOf(
     "isDailyAssigned" to isDailyAssigned,
     "startedAt" to startedAt,
     "completedAt" to completedAt,
-    "skippedAt" to skippedAt
+    "skippedAt" to skippedAt,
+    "currentProgress" to currentProgress,
+    "targetProgress" to targetProgress,
+    "progressUnit" to progressUnit,
+    "lastProgressUpdatedAt" to lastProgressUpdatedAt
 )
 
 private fun Any?.toStringList(): List<String> =
@@ -461,12 +531,17 @@ private fun String?.toQuestDifficulty(): QuestDifficulty =
     enumValues<QuestDifficulty>().firstOrNull { it.name.equals(this, ignoreCase = true) }
         ?: QuestDifficulty.Easy
 
+private fun String?.toQuestGoalType(): QuestGoalType =
+    enumValues<QuestGoalType>().firstOrNull { it.name.equals(this, ignoreCase = true) }
+        ?: QuestGoalType.Daily
+
 private fun String?.toQuestStatus(): QuestStatus =
     enumValues<QuestStatus>().firstOrNull { it.name.equals(this, ignoreCase = true) }
         ?: QuestStatus.Available
 
-private fun QuestStatus.isMoreFinalThan(other: QuestStatus): Boolean =
-    persistenceRank > other.persistenceRank
+private fun QuestState.isMoreFinalThan(other: QuestState): Boolean =
+    status.persistenceRank > other.status.persistenceRank ||
+        (status.persistenceRank == other.status.persistenceRank && currentProgress > other.currentProgress)
 
 private val QuestStatus.persistenceRank: Int
     get() = when (this) {

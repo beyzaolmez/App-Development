@@ -88,9 +88,19 @@ fun HomeScreen(
                 title = quest.title,
                 description = quest.description,
                 category = quest.category.label,
-                difficulty = "${quest.difficulty.label} · ${quest.estimatedMinutes} min",
+                difficulty = if (quest.isLongTerm) {
+                    "${quest.difficulty.label} · ${quest.targetProgress} ${quest.progressUnit}"
+                } else {
+                    "${quest.difficulty.label} · ${quest.estimatedMinutes} min"
+                },
                 status = quest.status.label,
                 statusVariant = quest.status.chipVariant(),
+                progressLabel = if (quest.isLongTerm) {
+                    "${quest.currentProgress}/${quest.targetProgress} ${quest.progressUnit}"
+                } else {
+                    null
+                },
+                progressFraction = if (quest.isLongTerm) quest.progressFraction else null,
                 actionLabel = if (quest.status == QuestStatus.Available) "Start quest" else null,
                 onActionClick = { onStartQuest(quest.id) },
                 secondaryActionLabel = if (quest.status == QuestStatus.Available) "Not today" else null,

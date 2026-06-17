@@ -155,7 +155,10 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     completedQuestCount = questViewModel.completedDailyQuestCount(),
                     dailyQuestLimit = questViewModel.dailyQuestLimit(),
                     onStatusSelected = questViewModel::selectStatus,
-                    onStartQuest = questViewModel::startQuest,
+                    onStartQuest = { id ->
+                        questViewModel.startQuest(id)
+                        navController.navigate(Routes.questDetail(id))
+                    },
                     onSkipQuest = questViewModel::skipQuest,
                     onQuestClick = { id -> navController.navigate(Routes.questDetail(id)) }
                 )
@@ -218,6 +221,13 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                         questViewModel.completeQuest(id)
                         navController.navigate(Routes.complete(id))
                     },
+                    onUpdateProgress = {
+                        val completed = questViewModel.updateQuestProgress(id)
+                        if (completed) {
+                            navController.navigate(Routes.complete(id))
+                        }
+                    },
+                    canUpdateProgress = questViewModel.canLogLongTermProgress(id),
                     onSaveForLater = { navController.popBackStack() },
                     onSkip = {
                         questViewModel.skipQuest(id)

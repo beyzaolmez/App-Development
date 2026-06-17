@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.QuestLocalCache
 import com.nhlstenden.momentum.data.model.JournalEntry
+import com.nhlstenden.momentum.data.model.LongTermQuestProgress
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestFeedback
@@ -105,11 +106,13 @@ class QuestViewModel(
         val interestFilteredQuests = if (selectedInterests.isEmpty()) {
             filteredQuests
         } else {
-            filteredQuests.filter { it.category.label in selectedInterests }
+            filteredQuests.filter { it.isLongTerm || it.category.label in selectedInterests }
         }.ifEmpty { filteredQuests }
 
         val visibleCandidates = if (selectedInterests.isNotEmpty() && selectedStatus == null) {
-            interestFilteredQuests.take(dailyQuestLimit)
+            interestFilteredQuests
+                .filter { it.isLongTerm }
+                .plus(interestFilteredQuests.filterNot { it.isLongTerm }.take(dailyQuestLimit))
         } else {
             interestFilteredQuests.dailyLimited()
         }
@@ -129,11 +132,13 @@ class QuestViewModel(
     fun totalQuestCount(): Int = quests.size
 
     fun completedDailyQuestCount(): Int =
-        minOf(completedQuestCount(), totalDailyQuestCount())
+        minOf(quests.count { !it.isLongTerm && it.status == QuestStatus.Completed }, totalDailyQuestCount())
 
     fun totalCompletedQuestCount(): Int = userProgress.completedQuestCount
 
-    fun totalDailyQuestCount(): Int = minOf(dailyQuestLimit, quests.size)
+    fun totalDailyQuestCount(): Int = minOf(dailyQuestLimit, quests.count { !it.isLongTerm })
+    fun activeLongTermQuestCount(): Int =
+        quests.count { it.isLongTerm && it.status == QuestStatus.Active }
 
     fun dailyQuestLimit(): Int = dailyQuestLimit
 
@@ -180,6 +185,52 @@ class QuestViewModel(
     fun completeQuest(id: String) {
         if (questById(id)?.status == QuestStatus.Completed) return
         updateQuestStatus(id, QuestStatus.Completed)
+    }
+
+    fun canLogLongTermProgress(id: String): Boolean {
+        val quest = questById(id) ?: return false
+        return quest.isLongTerm &&
+            quest.status == QuestStatus.Active &&
+            !quest.wasProgressUpdatedToday()
+    }
+
+    fun updateQuestProgress(id: String, progressDelta: Int = 1): Boolean {
+        val currentQuest = questById(id) ?: return false
+        val now = System.currentTimeMillis()
+        val canUpdateToday = !currentQuest.wasProgressUpdatedToday(now)
+        val update = LongTermQuestProgress.updatedQuest(
+            quest = currentQuest,
+            progressDelta = progressDelta,
+            now = now,
+            canUpdateToday = canUpdateToday
+        )
+        if (update.quest == currentQuest) return false
+
+        quests = quests.map { quest ->
+            if (quest.id == id) update.quest else quest
+        }
+
+        val uid = auth.currentUser?.uid
+        val questState = update.quest.toQuestState(update.quest.status, lastProgressUpdatedAt = update.updatedAt)
+        if (uid == null) {
+            if (update.completedNow) {
+                updateDemoCompletionProgress(update.quest)
+            }
+            return update.completedNow
+        }
+
+        localCache?.saveQuestState(uid, questState)
+        viewModelScope.launch {
+            if (update.completedNow) {
+                updateUserProgress(uid, update.quest)
+            }
+            runCatching {
+                firestoreQuestRepository.saveQuestState(uid, questState)
+            }.onFailure { error ->
+                errorMessage = error.toFriendlyQuestDataMessage()
+            }
+        }
+        return update.completedNow
     }
 
     fun completeQuestWithReflection(
@@ -288,8 +339,8 @@ class QuestViewModel(
                     firestoreQuestRepository.getRemoteQuests()
                 }
 
+                val predefined = fallbackQuestRepository.getQuests()
                 val loadedQuests = if (remoteQuests.isEmpty()) {
-                    val predefined = fallbackQuestRepository.getQuests()
                     runCatching {
                         withTimeout(FIRESTORE_TIMEOUT_MS) {
                             firestoreQuestRepository.seedQuests(predefined)
@@ -297,15 +348,25 @@ class QuestViewModel(
                     }
                     predefined
                 } else {
-                    remoteQuests
+                    val missingPredefinedQuests = predefined.filterNot { predefinedQuest ->
+                        remoteQuests.any { it.id == predefinedQuest.id }
+                    }
+                    if (missingPredefinedQuests.isNotEmpty()) {
+                        runCatching {
+                            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                                firestoreQuestRepository.seedQuests(missingPredefinedQuests)
+                            }
+                        }
+                    }
+                    remoteQuests + missingPredefinedQuests
                 }
 
                 val loadedData = coroutineScope {
                     val statesDeferred = async {
                         runCatching {
                             withTimeout(FIRESTORE_TIMEOUT_MS) {
-                                firestoreQuestRepository.getQuestStates(uid)
-                                    .filter { it.date == today }
+                                    firestoreQuestRepository.getQuestStates(uid)
+                                        .filterForCurrentQuests(loadedQuests)
                             }
                         }.onSuccess { states ->
                             localCache?.saveQuestStates(uid, states)
@@ -313,7 +374,7 @@ class QuestViewModel(
                             mergeQuestStates(
                                 remoteStates,
                                 localCache?.loadQuestStates(uid)
-                                    ?.filter { it.date == today }
+                                    ?.filterForCurrentQuests(loadedQuests)
                                     .orEmpty()
                             )
                         }
@@ -387,22 +448,25 @@ class QuestViewModel(
         if (previousStatus == status) return
 
         quests = quests.map { quest ->
-            if (quest.id == id) quest.copy(status = status) else quest
+            if (quest.id == id) {
+                quest.copy(
+                    status = status,
+                    currentProgress = if (status == QuestStatus.Completed && quest.isLongTerm) {
+                        quest.targetProgress.coerceAtLeast(1)
+                    } else {
+                        quest.currentProgress
+                    }
+                )
+            } else {
+                quest
+            }
         }
 
         val quest = questById(id) ?: return
         val uid = auth.currentUser?.uid
         if (uid == null) {
             if (status == QuestStatus.Completed) {
-                val categoryCounts = userProgress.categoryCounts.toMutableMap()
-                val categoryKey = quest.category.name
-                categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
-                userProgress = userProgress.copy(
-                    currentStreak = maxOf(userProgress.currentStreak, 1),
-                    completedQuestCount = userProgress.completedQuestCount + 1,
-                    categoryCounts = categoryCounts,
-                    lastQuestCompletionDate = today
-                )
+                updateDemoCompletionProgress(quest)
             } else if (status == QuestStatus.Skipped && previousStatus != QuestStatus.Skipped) {
                 userProgress = userProgress.copy(skippedQuestCount = userProgress.skippedQuestCount + 1)
             }
@@ -556,21 +620,43 @@ class QuestViewModel(
         val stateByQuestId = states.associateBy { it.questId }
         return map { quest ->
             val state = stateByQuestId[quest.id]
-            if (state == null) quest else quest.copy(status = state.status)
+            if (state == null) {
+                quest
+            } else {
+                quest.copy(
+                    status = state.status,
+                    currentProgress = state.currentProgress.coerceIn(0, quest.targetProgress.coerceAtLeast(1)),
+                    targetProgress = state.targetProgress.coerceAtLeast(quest.targetProgress.coerceAtLeast(1)),
+                    progressUnit = state.progressUnit.takeIf { it.isNotBlank() } ?: quest.progressUnit,
+                    lastProgressUpdatedAt = state.lastProgressUpdatedAt
+                )
+            }
         }
     }
 
-    private fun Quest.toQuestState(status: QuestStatus): QuestState {
+    private fun Quest.toQuestState(
+        status: QuestStatus,
+        lastProgressUpdatedAt: Long? = null
+    ): QuestState {
         val now = System.currentTimeMillis()
+        val completedProgress = if (status == QuestStatus.Completed && isLongTerm) {
+            targetProgress.coerceAtLeast(1)
+        } else {
+            currentProgress
+        }
         return QuestState(
-            questStateId = "$today-$id",
+            questStateId = if (isLongTerm) "long-term-$id" else "$today-$id",
             questId = id,
             date = today,
             status = status,
             isDailyAssigned = id in dailyQuestIds,
             startedAt = if (status == QuestStatus.Active) now else null,
             completedAt = if (status == QuestStatus.Completed) now else null,
-            skippedAt = if (status == QuestStatus.Skipped) now else null
+            skippedAt = if (status == QuestStatus.Skipped) now else null,
+            currentProgress = completedProgress.coerceIn(0, targetProgress.coerceAtLeast(1)),
+            targetProgress = targetProgress.coerceAtLeast(1),
+            progressUnit = progressUnit,
+            lastProgressUpdatedAt = lastProgressUpdatedAt
         )
     }
 
@@ -578,7 +664,7 @@ class QuestViewModel(
         if (selectedStatus != null && selectedStatus != QuestStatus.Available) return this
 
         return filter { quest ->
-            quest.status != QuestStatus.Available || quest.id in dailyQuestIds
+            quest.isLongTerm || quest.status != QuestStatus.Available || quest.id in dailyQuestIds
         }
     }
 
@@ -596,10 +682,28 @@ class QuestViewModel(
 
     private fun refreshDailyAssignments(sourceQuests: List<Quest> = quests) {
         dailyQuestIds = sourceQuests
+            .filterNot { it.isLongTerm }
             .prioritizedByFeedback()
             .take(dailyQuestLimit)
             .map { it.id }
             .toSet()
+    }
+
+    private fun updateDemoCompletionProgress(quest: Quest) {
+        val categoryCounts = userProgress.categoryCounts.toMutableMap()
+        val categoryKey = quest.category.name
+        categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
+        userProgress = userProgress.copy(
+            currentStreak = maxOf(userProgress.currentStreak, 1),
+            completedQuestCount = userProgress.completedQuestCount + 1,
+            categoryCounts = categoryCounts,
+            lastQuestCompletionDate = today
+        )
+    }
+
+    private fun Quest.wasProgressUpdatedToday(now: Long = System.currentTimeMillis()): Boolean {
+        val updatedAt = lastProgressUpdatedAt ?: return false
+        return dateFormat.format(Date(updatedAt)) == dateFormat.format(Date(now))
     }
 }
 
@@ -639,7 +743,12 @@ private val QuestStatus.sortOrder: Int
 private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<QuestState>): List<QuestState> =
     (remoteStates + cachedStates)
         .groupBy { it.questStateId }
-        .map { (_, versions) -> versions.maxBy { it.status.persistenceRank } }
+        .map { (_, versions) -> versions.maxWith(compareBy<QuestState> { it.status.persistenceRank }.thenBy { it.currentProgress }) }
+
+private fun List<QuestState>.filterForCurrentQuests(quests: List<Quest>): List<QuestState> {
+    val longTermQuestIds = quests.filter { it.isLongTerm }.map { it.id }.toSet()
+    return filter { state -> state.date == dateFormat.format(Date()) || state.questId in longTermQuestIds }
+}
 
 private fun preferredProgress(
     remoteProgress: UserProgress?,
