@@ -15,6 +15,7 @@ import com.nhlstenden.momentum.data.repository.FirestoreSharedStreakRepository
 import com.nhlstenden.momentum.data.repository.FirestoreUserRepository
 import com.nhlstenden.momentum.data.repository.SharedStreakRepository
 import com.nhlstenden.momentum.data.repository.UserRepository
+import com.nhlstenden.momentum.data.model.User
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
@@ -124,6 +125,7 @@ class SharedStreakViewModel(
             return
         }
 
+        ensureCurrentUserProfile()
         isLoading = true
         loadError = null
         streakListener = sharedStreakRepository.observeStreaksForUser(
@@ -163,12 +165,21 @@ class SharedStreakViewModel(
             inviteError = null
             inviteSuccess = null
 
-            val friend = runCatching {
-                withTimeout(FIRESTORE_TIMEOUT_MS) { userRepository.findByEmail(normalizedEmail) }
-            }.getOrNull()
+            ensureCurrentUserProfile()
 
+            val friendResult = runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) { userRepository.findByEmail(normalizedEmail) }
+            }
+
+            if (friendResult.isFailure) {
+                inviteError = "We couldn't search for that friend right now. Please try again."
+                inviteInProgress = false
+                return@launch
+            }
+
+            val friend = friendResult.getOrNull()
             if (friend == null) {
-                inviteError = "No Momentum user found with that email. Ask your friend to sign up first."
+                inviteError = "No Momentum profile found with that email. Ask your friend to sign in once, then try again."
                 inviteInProgress = false
                 return@launch
             }
@@ -327,6 +338,34 @@ class SharedStreakViewModel(
         viewModelScope.launch {
             runCatching {
                 withTimeout(FIRESTORE_TIMEOUT_MS) { sharedStreakRepository.updateStreak(streak) }
+            }
+        }
+    }
+
+    private fun ensureCurrentUserProfile() {
+        val firebaseUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) {
+                    val existing = userRepository.getUser(firebaseUser.uid)
+                    val displayName = existing?.displayName
+                        ?.takeIf { it.isNotBlank() }
+                        ?: firebaseUser.displayName.orEmpty()
+                    val email = existing?.email
+                        ?.takeIf { it.isNotBlank() }
+                        ?: firebaseUser.email.orEmpty()
+
+                    userRepository.saveUser(
+                        (existing ?: User(
+                            uid = firebaseUser.uid,
+                            displayName = displayName,
+                            email = email
+                        )).copy(
+                            displayName = displayName,
+                            email = email
+                        )
+                    )
+                }
             }
         }
     }
