@@ -66,6 +66,7 @@ fun FriendsScreen(
         onSendInvite = {
             viewModel.invite(inviteEmail)
         },
+        onRefresh = viewModel::refresh,
         onAccept = viewModel::accept,
         onDecline = viewModel::decline,
         onBack = onBack
@@ -89,6 +90,7 @@ private fun FriendsContent(
     inviteError: String?,
     inviteSuccess: String?,
     onSendInvite: () -> Unit,
+    onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onDecline: (String) -> Unit,
     onBack: () -> Unit
@@ -121,6 +123,12 @@ private fun FriendsContent(
         if (loadError != null) {
             MomentumInlineError(loadError)
         }
+        MomentumSecondaryButton(
+            text = if (isLoading) "Refreshing..." else "Refresh streaks",
+            onClick = onRefresh,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
+        )
 
         // ---- Incoming invitations ----
         if (incomingInvitations.isNotEmpty()) {
@@ -370,6 +378,7 @@ private fun FriendsPreview() {
             inviteError = null,
             inviteSuccess = null,
             onSendInvite = {},
+            onRefresh = {},
             onAccept = {},
             onDecline = {},
             onBack = {}
