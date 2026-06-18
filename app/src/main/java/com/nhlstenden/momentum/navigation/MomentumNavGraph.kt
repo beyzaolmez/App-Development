@@ -257,6 +257,7 @@ fun MomentumApp(
                         if (completed) {
                             navController.navigate(Routes.complete(id))
                         }
+                        completed
                     },
                     canUpdateProgress = questViewModel.canLogLongTermProgress(id),
                     onSaveForLater = { navController.popBackStack() },

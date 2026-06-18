@@ -23,6 +23,7 @@ import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.viewmodel.FriendLikedQuest
+import com.nhlstenden.momentum.viewmodel.QuestBoardDebugInfo
 import com.nhlstenden.momentum.viewmodel.QuestBoardViewModel
 
 @Composable
@@ -35,6 +36,7 @@ fun QuestBoardScreen(
         isLoading = viewModel.isLoading,
         loadError = viewModel.loadError,
         friendLikedQuests = viewModel.friendLikedQuests,
+        debugInfo = viewModel.debugInfo,
         onRefresh = viewModel::refresh,
         onBack = onBack
     )
@@ -46,6 +48,7 @@ private fun QuestBoardContent(
     isLoading: Boolean,
     loadError: String?,
     friendLikedQuests: List<FriendLikedQuest>,
+    debugInfo: QuestBoardDebugInfo,
     onRefresh: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -88,9 +91,27 @@ private fun QuestBoardContent(
         if (!isLoading && loadError == null && friendLikedQuests.isEmpty()) {
             MomentumStatusCard(
                 title = "Nothing here yet",
-                message = "Once a friend likes a quest, it will appear here.",
+                message = when {
+                    debugInfo.activeFriendCount == 0 ->
+                        "No active shared-streak friends were found."
+                    debugInfo.mirroredLikeCount == 0 ->
+                        "Active friends found, but no liked quest activity is shared yet."
+                    else ->
+                        "Found ${debugInfo.mirroredLikeCount} liked quest ids, but none matched available quests."
+                },
                 variant = ChipVariant.Neutral
             )
+        }
+
+        MomentumCard {
+            Column(it, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Board status", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Active friends: ${debugInfo.activeFriendCount} · Shared likes: ${debugInfo.mirroredLikeCount} · Visible cards: ${debugInfo.visibleQuestCount}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         friendLikedQuests.forEach { item ->

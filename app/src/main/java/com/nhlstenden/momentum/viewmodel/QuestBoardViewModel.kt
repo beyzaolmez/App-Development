@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
+import com.nhlstenden.momentum.data.repository.FirestoreQuestRepository
 import com.nhlstenden.momentum.data.repository.FirestoreSharedStreakRepository
 import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
 import com.nhlstenden.momentum.data.repository.SharedStreakRepository
@@ -18,6 +19,12 @@ import kotlinx.coroutines.withTimeout
 data class FriendLikedQuest(
     val friendName: String,
     val quest: Quest
+)
+
+data class QuestBoardDebugInfo(
+    val activeFriendCount: Int = 0,
+    val mirroredLikeCount: Int = 0,
+    val visibleQuestCount: Int = 0
 )
 
 object QuestBoardLogic {
@@ -44,7 +51,8 @@ object QuestBoardLogic {
 class QuestBoardViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val sharedStreakRepository: SharedStreakRepository = FirestoreSharedStreakRepository(),
-    private val questRepository: PredefinedQuestRepository = PredefinedQuestRepository()
+    private val remoteQuestRepository: FirestoreQuestRepository = FirestoreQuestRepository(),
+    private val fallbackQuestRepository: PredefinedQuestRepository = PredefinedQuestRepository()
 ) : ViewModel() {
 
     var isLoading by mutableStateOf(false)
@@ -57,6 +65,9 @@ class QuestBoardViewModel(
         private set
 
     var friendLikedQuests by mutableStateOf<List<FriendLikedQuest>>(emptyList())
+        private set
+
+    var debugInfo by mutableStateOf(QuestBoardDebugInfo())
         private set
 
     init {
@@ -79,19 +90,43 @@ class QuestBoardViewModel(
                     sharedStreakRepository.getStreaksForUser(uid)
                         .filter { it.status == SharedStreakStatus.Active }
                 }
-
-                QuestBoardLogic.friendLikedQuests(
+                val questById = loadQuestLookup()
+                val mirroredLikeCount = activeStreaks.sumOf { streak ->
+                    streak.otherMemberId(uid)
+                        ?.let { friendUid -> streak.likedQuestIdsFor(friendUid).size }
+                        ?: 0
+                }
+                val results = QuestBoardLogic.friendLikedQuests(
                     currentUid = uid,
                     streaks = activeStreaks,
-                    questById = questRepository::getQuestById
+                    questById = questById::get
                 )
+                debugInfo = QuestBoardDebugInfo(
+                    activeFriendCount = activeStreaks.mapNotNull { it.otherMemberId(uid) }.distinct().size,
+                    mirroredLikeCount = mirroredLikeCount,
+                    visibleQuestCount = results.size
+                )
+
+                results
             }.onSuccess { results ->
                 friendLikedQuests = results
             }.onFailure {
+                debugInfo = QuestBoardDebugInfo()
                 loadError = "Couldn't load the quest board. Try refreshing."
             }
 
             isLoading = false
         }
+    }
+
+    private suspend fun loadQuestLookup(): Map<String, Quest> {
+        val fallbackQuests = fallbackQuestRepository.getQuests()
+        val remoteQuests = runCatching {
+            withTimeout(8_000L) {
+                remoteQuestRepository.getRemoteQuests()
+            }
+        }.getOrDefault(emptyList())
+
+        return (fallbackQuests + remoteQuests).associateBy { it.id }
     }
 }

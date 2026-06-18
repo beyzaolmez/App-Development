@@ -40,7 +40,7 @@ fun QuestDetailScreen(
     onBack: () -> Unit = {},
     onStart: () -> Unit = {},
     onComplete: () -> Unit = {},
-    onUpdateProgress: () -> Unit = {},
+    onUpdateProgress: () -> Boolean = { false },
     canUpdateProgress: Boolean = true,
     onSaveForLater: () -> Unit = {},
     onSkip: () -> Unit = {},
@@ -143,11 +143,13 @@ private fun LongTermQuestActions(
     quest: Quest,
     onBack: () -> Unit,
     onStart: () -> Unit,
-    onUpdateProgress: () -> Unit,
+    onUpdateProgress: () -> Boolean,
     canUpdateProgress: Boolean,
     onSaveForLater: () -> Unit,
     onSkip: () -> Unit
 ) {
+    val view = LocalView.current
+
     when (quest.status) {
         QuestStatus.Available -> {
             MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
@@ -157,7 +159,11 @@ private fun LongTermQuestActions(
         QuestStatus.Active -> {
             MomentumPrimaryButton(
                 text = if (canUpdateProgress) "Log 1 ${quest.progressUnit}" else "Progress logged today",
-                onClick = onUpdateProgress,
+                onClick = {
+                    if (onUpdateProgress()) {
+                        HapticHelper.questComplete(view)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canUpdateProgress
             )
