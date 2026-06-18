@@ -28,6 +28,11 @@ enum class MomentumAppTheme(
         label = "Sunset",
         storageValue = "sunset",
         previewColors = listOf(Color(0xFFFFC6A6), Color(0xFFD9B7FF), Color(0xFFFFD889))
+    ),
+    Paper(
+        label = "Paper",
+        storageValue = "paper",
+        previewColors = listOf(Color(0xFF2F6F73), Color(0xFF8D79B8), Color(0xFFD9A441))
     );
 
     companion object {
@@ -114,5 +119,24 @@ fun colorSchemeFor(theme: MomentumAppTheme): ColorScheme =
             onSurfaceVariant = Color(0xFFD8C8D7),
             outline = Color(0xFFA797A8),
             outlineVariant = Color(0xFF55465A)
+        )
+
+        MomentumAppTheme.Paper -> darkColorScheme(
+            primary = Color(0xFF2F6F73),
+            onPrimary = Color(0xFFFFFFFF),
+            primaryContainer = Color(0xFF2F6F73),
+            onPrimaryContainer = Color(0xFFFFFFFF),
+            secondary = Color(0xFF8D79B8),
+            onSecondary = Color(0xFFFFFFFF),
+            tertiary = Color(0xFFD9A441),
+            onTertiary = Color(0xFF231703),
+            background = Color(0xFFF7F5EF),
+            onBackground = Color(0xFF202733),
+            surface = Color(0xFFFFFFFF),
+            onSurface = Color(0xFF202733),
+            surfaceVariant = Color(0xFFE9E6DE),
+            onSurfaceVariant = Color(0xFF56606A),
+            outline = Color(0xFF8A9298),
+            outlineVariant = Color(0xFFD4D0C7)
         )
     }
