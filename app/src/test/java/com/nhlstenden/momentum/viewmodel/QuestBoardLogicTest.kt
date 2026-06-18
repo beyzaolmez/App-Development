@@ -3,9 +3,8 @@ package com.nhlstenden.momentum.viewmodel
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestDifficulty
-import com.nhlstenden.momentum.data.model.QuestFeedback
-import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.data.model.SharedStreak
+import com.nhlstenden.momentum.data.model.SharedStreakLogic
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -23,18 +22,8 @@ class QuestBoardLogicTest {
         val results = QuestBoardLogic.friendLikedQuests(
             currentUid = "me",
             streaks = listOf(
-                streak("friend", "Noor", SharedStreakStatus.Active),
-                streak("pending", "Sam", SharedStreakStatus.Pending)
-            ),
-            feedbackByFriendUid = mapOf(
-                "friend" to listOf(
-                    feedback("liked-quest", QuestFeedbackType.Like),
-                    feedback("disliked-quest", QuestFeedbackType.Dislike),
-                    feedback("missing-quest", QuestFeedbackType.Like)
-                ),
-                "pending" to listOf(
-                    feedback("pending-friend-quest", QuestFeedbackType.Like)
-                )
+                streak("friend", "Noor", SharedStreakStatus.Active, likedQuestIds = listOf("liked-quest", "missing-quest")),
+                streak("pending", "Sam", SharedStreakStatus.Pending, likedQuestIds = listOf("pending-friend-quest"))
             ),
             questById = quests::get
         )
@@ -52,17 +41,16 @@ class QuestBoardLogicTest {
 
         val firstResult = QuestBoardLogic.friendLikedQuests(
             currentUid = "me",
-            streaks = listOf(activeStreak),
-            feedbackByFriendUid = mapOf("friend" to listOf(feedback("first", QuestFeedbackType.Like))),
+            streaks = listOf(SharedStreakLogic.recordLike(activeStreak, "friend", "first")),
             questById = quests::get
         )
         val refreshedResult = QuestBoardLogic.friendLikedQuests(
             currentUid = "me",
-            streaks = listOf(activeStreak),
-            feedbackByFriendUid = mapOf(
-                "friend" to listOf(
-                    feedback("first", QuestFeedbackType.Like),
-                    feedback("second", QuestFeedbackType.Like)
+            streaks = listOf(
+                SharedStreakLogic.recordLike(
+                    SharedStreakLogic.recordLike(activeStreak, "friend", "first"),
+                    "friend",
+                    "second"
                 )
             ),
             questById = quests::get
@@ -82,15 +70,8 @@ class QuestBoardLogicTest {
         val results = QuestBoardLogic.friendLikedQuests(
             currentUid = "me",
             streaks = listOf(
-                streak("noor", "Noor", SharedStreakStatus.Active),
-                streak("alex", "Alex", SharedStreakStatus.Active)
-            ),
-            feedbackByFriendUid = mapOf(
-                "noor" to listOf(feedback("shared", QuestFeedbackType.Like)),
-                "alex" to listOf(
-                    feedback("shared", QuestFeedbackType.Like),
-                    feedback("solo", QuestFeedbackType.Like)
-                )
+                streak("noor", "Noor", SharedStreakStatus.Active, likedQuestIds = listOf("shared")),
+                streak("alex", "Alex", SharedStreakStatus.Active, likedQuestIds = listOf("shared", "solo"))
             ),
             questById = quests::get
         )
@@ -105,21 +86,18 @@ class QuestBoardLogicTest {
         )
     }
 
-    private fun streak(friendUid: String, friendName: String, status: SharedStreakStatus) =
+    private fun streak(
+        friendUid: String,
+        friendName: String,
+        status: SharedStreakStatus,
+        likedQuestIds: List<String> = emptyList()
+    ) =
         SharedStreak(
             id = "streak-$friendUid",
             memberIds = listOf("me", friendUid),
             memberNames = mapOf("me" to "Me", friendUid to friendName),
-            status = status
-        )
-
-    private fun feedback(questId: String, type: QuestFeedbackType) =
-        QuestFeedback(
-            feedbackId = "feedback-$questId-${type.name}",
-            questId = questId,
-            category = QuestCategory.Wellbeing,
-            feedbackType = type,
-            createdAt = 1L
+            status = status,
+            likedQuestIdsByMember = mapOf(friendUid to likedQuestIds)
         )
 
     private fun quest(id: String, title: String) =
