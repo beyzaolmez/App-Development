@@ -37,6 +37,7 @@ import com.nhlstenden.momentum.ui.screens.quest.CompleteScreen
 import com.nhlstenden.momentum.ui.screens.quest.QuestDetailScreen
 import com.nhlstenden.momentum.ui.screens.quest.QuestReflectionScreen
 import com.nhlstenden.momentum.ui.screens.reflect.ReflectScreen
+import com.nhlstenden.momentum.ui.theme.MomentumAppTheme
 import com.nhlstenden.momentum.viewmodel.ProfileViewModel
 import com.nhlstenden.momentum.viewmodel.QuestViewModel
 
@@ -46,7 +47,11 @@ private val mainRoutes = setOf(
 )
 
 @Composable
-fun MomentumApp(navController: NavHostController = rememberNavController()) {
+fun MomentumApp(
+    navController: NavHostController = rememberNavController(),
+    selectedTheme: MomentumAppTheme = MomentumAppTheme.Default,
+    onThemeSelected: (MomentumAppTheme) -> Unit = {}
+) {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomNav = currentRoute in mainRoutes
@@ -202,6 +207,8 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                     isSavingName = profileViewModel.isSaving,
                     saveNameError = profileViewModel.saveError,
                     onSaveDisplayName = { newName -> profileViewModel.updateDisplayName(newName) },
+                    selectedTheme = selectedTheme,
+                    onThemeSelected = onThemeSelected,
                     onOpenFriends = { navController.navigate(Routes.Friends) },
                     onEditInterests = { navController.navigate(Routes.Interests) },
                     onSuggestQuest = { navController.navigate(Routes.SuggestQuest) },

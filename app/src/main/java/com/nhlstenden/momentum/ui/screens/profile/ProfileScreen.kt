@@ -1,6 +1,8 @@
 package com.nhlstenden.momentum.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.ui.components.ChipVariant
@@ -35,6 +39,7 @@ import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.components.MomentumTextField
+import com.nhlstenden.momentum.ui.theme.MomentumAppTheme
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 
 @Composable
@@ -46,6 +51,8 @@ fun ProfileScreen(
     isSavingName: Boolean = false,
     saveNameError: String? = null,
     onSaveDisplayName: ((String) -> Unit)? = null,
+    selectedTheme: MomentumAppTheme = MomentumAppTheme.Default,
+    onThemeSelected: (MomentumAppTheme) -> Unit = {},
     onOpenFriends: () -> Unit = {},
     onEditInterests: () -> Unit = {},
     onSendTestNotification: () -> Unit = {},
@@ -144,6 +151,24 @@ fun ProfileScreen(
         }
 
         MomentumCard {
+            Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Theme", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Choose the colors Momentum uses across the app.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                MomentumAppTheme.entries.forEach { theme ->
+                    ThemeOptionRow(
+                        theme = theme,
+                        selected = theme == selectedTheme,
+                        onClick = { onThemeSelected(theme) }
+                    )
+                }
+            }
+        }
+
+        MomentumCard {
             Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Friends", style = MaterialTheme.typography.titleLarge)
                 Text(
@@ -202,6 +227,55 @@ fun ProfileScreen(
 
         if (deleteAccountError != null) {
             MomentumInlineError(deleteAccountError)
+        }
+    }
+}
+
+@Composable
+private fun ThemeOptionRow(
+    theme: MomentumAppTheme,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(backgroundColor)
+            .border(1.dp, borderColor, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = theme.label,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            theme.previewColors.forEach { color ->
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+            }
+        }
+        if (selected) {
+            Box(modifier = Modifier.width(12.dp))
+            MomentumChip("Selected", variant = ChipVariant.Status)
         }
     }
 }
