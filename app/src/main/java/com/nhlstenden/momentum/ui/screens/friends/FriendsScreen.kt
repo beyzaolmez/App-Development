@@ -475,8 +475,8 @@ private fun FriendConnectionRow(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    if (sharedStreakCount > 0) "${sharedStreakCount} day streak together"
-                    else "No active streak yet",
+                    if (sharedStreakCount > 0) "${sharedStreakCount} day streak together · Shared"
+                    else "No active streak yet · Shared",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -503,9 +503,9 @@ private fun FriendPersonalStreakRow(friend: FriendStreak) {
                 Text(friend.displayName, style = MaterialTheme.typography.titleLarge)
                 Text(
                     when {
-                        friend.currentStreak <= 0 -> "No personal streak yet"
-                        friend.currentStreak == 1 -> "On a 1 day personal streak"
-                        else -> "On a ${friend.currentStreak} day personal streak"
+                        friend.currentStreak <= 0 -> "No personal streak yet · Personal"
+                        friend.currentStreak == 1 -> "On a 1 day personal streak · Personal"
+                        else -> "On a ${friend.currentStreak} day personal streak · Personal"
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
