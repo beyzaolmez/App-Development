@@ -20,8 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.model.CategoryProgressStat
+import com.nhlstenden.momentum.data.model.LongTermQuestSummary
 import com.nhlstenden.momentum.data.model.ProgressOverview
 import com.nhlstenden.momentum.data.model.QuestCategory
+import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
@@ -49,6 +51,7 @@ fun ProgressScreen(overview: ProgressOverview = ProgressOverview()) {
                 )
             }
         }
+        item { LongTermQuestStatsCard(overview.longTermQuests) }
         item { ActivityStatsCard(overview) }
     }
 }
@@ -67,6 +70,47 @@ private fun ProgressHeader() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun LongTermQuestStatsCard(longTermQuests: List<LongTermQuestSummary>) {
+    val activeCount = longTermQuests.count { quest -> quest.status == QuestStatus.Active }
+    val completedCount = longTermQuests.count { quest -> quest.status == QuestStatus.Completed }
+
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Long-term quests", style = MaterialTheme.typography.titleLarge)
+                MomentumChip("$completedCount done", variant = ChipVariant.Reward)
+            }
+            if (longTermQuests.isEmpty()) {
+                Text(
+                    "Start a long-term quest to track progress toward larger goals.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    LongTermStatText(value = activeCount.toString(), label = "active goals")
+                    LongTermStatText(value = completedCount.toString(), label = "completed goals")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LongTermStatText(value: String, label: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = MaterialTheme.typography.headlineMedium)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -104,7 +148,7 @@ private fun ActivityStatsCard(overview: ProgressOverview) {
             } else {
                 overview.categoryStats.forEach { stat ->
                     ProgressRow(
-                        label = "${stat.category.label}: ${stat.completedCount} completed",
+                        label = "${stat.category.label}: ${stat.completedCount} ${stat.completedCount.activityLabel()}",
                         fraction = stat.fraction,
                         color = stat.category.progressColor()
                     )
@@ -133,6 +177,8 @@ private fun ProgressRow(label: String, fraction: Float, color: Color) {
         }
     }
 }
+
+private fun Int.activityLabel(): String = if (this == 1) "activity" else "activities"
 
 @Composable
 private fun QuestCategory.progressColor(): Color = when (this) {

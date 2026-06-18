@@ -10,8 +10,24 @@ data class Quest(
     val estimatedMinutes: Int,
     val steps: List<String>,
     val journalPrompt: String? = null,
-    val status: QuestStatus = QuestStatus.Available
-)
+    val status: QuestStatus = QuestStatus.Available,
+    val goalType: QuestGoalType = QuestGoalType.Daily,
+    val targetProgress: Int = 1,
+    val progressUnit: String = "completion",
+    val currentProgress: Int = 0,
+    val lastProgressUpdatedAt: Long? = null
+) {
+    val isLongTerm: Boolean
+        get() = goalType == QuestGoalType.LongTerm
+
+    val progressFraction: Float
+        get() = if (targetProgress <= 0) 0f else currentProgress.toFloat() / targetProgress.toFloat()
+}
+
+enum class QuestGoalType(val label: String) {
+    Daily("Daily"),
+    LongTerm("Long-term")
+}
 
 enum class QuestCategory(val label: String) {
     Academic("Academic"),

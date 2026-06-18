@@ -17,6 +17,7 @@ import java.util.TimeZone
  *
  * SimpleDateFormat + Calendar are used (instead of java.time) to stay compatible
  * with minSdk 24, matching [StreakStore] and the quest progress logic.
+ * The formatter is wrapped in ThreadLocal because SimpleDateFormat is NOT thread-safe.
  */
 data class SharedStreak(
     val id: String = "",
@@ -52,9 +53,11 @@ enum class SharedStreakStatus { Pending, Active, Declined }
  */
 object SharedStreakLogic {
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-        isLenient = false  // Strict parsing - reject invalid dates like "2024-13-45"
+    private val dateFormat = ThreadLocal.withInitial {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false  // Strict parsing - reject invalid dates like "2024-13-45"
+        }
     }
 
     private val datePattern = Regex("^\\d{4}-\\d{2}-\\d{2}$")
@@ -62,21 +65,21 @@ object SharedStreakLogic {
     /** Validates that [date] is in "yyyy-MM-dd" format and represents a real calendar date. */
     fun isValidDate(date: String): Boolean {
         if (!datePattern.matches(date)) return false
-        return runCatching { dateFormat.parse(date) }.isSuccess
+        return runCatching { dateFormat.get()!!.parse(date) }.isSuccess
     }
 
     /** Returns today's date in UTC ("yyyy-MM-dd") for consistent cross-timezone streak calculation. */
-    fun today(): String = dateFormat.format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
+    fun today(): String = dateFormat.get()!!.format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
 
     /** The calendar day immediately before [date] (expects "yyyy-MM-dd"). Returns [date] if invalid. */
     fun previousDay(date: String): String {
         if (!isValidDate(date)) return date
-        val parsed = dateFormat.parse(date) ?: return date
+        val parsed = dateFormat.get()!!.parse(date) ?: return date
         val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             time = parsed
             add(Calendar.DAY_OF_YEAR, -1)
         }
-        return dateFormat.format(calendar.time)
+        return dateFormat.get()!!.format(calendar.time)
     }
 
     /**

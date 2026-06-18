@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.model.Quest
+import com.nhlstenden.momentum.data.model.QuestFeedback
 import com.nhlstenden.momentum.data.model.QuestFeedbackType
+import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
 import com.nhlstenden.momentum.data.repository.FirestoreQuestFeedbackRepository
 import com.nhlstenden.momentum.data.repository.FirestoreSharedStreakRepository
@@ -23,6 +25,29 @@ data class FriendLikedQuest(
     val friendName: String,
     val quest: Quest
 )
+
+object QuestBoardLogic {
+    fun friendLikedQuests(
+        currentUid: String,
+        streaks: List<SharedStreak>,
+        feedbackByFriendUid: Map<String, List<QuestFeedback>>,
+        questById: (String) -> Quest?
+    ): List<FriendLikedQuest> =
+        streaks
+            .filter { it.status == SharedStreakStatus.Active }
+            .flatMap { streak ->
+                val friendUid = streak.otherMemberId(currentUid) ?: return@flatMap emptyList()
+                val friendName = streak.otherMemberName(currentUid)
+
+                feedbackByFriendUid[friendUid].orEmpty()
+                    .filter { it.feedbackType == QuestFeedbackType.Like }
+                    .mapNotNull { feedback ->
+                        questById(feedback.questId)?.let { quest ->
+                            FriendLikedQuest(friendName, quest)
+                        }
+                    }
+            }
+}
 
 class QuestBoardViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -66,27 +91,28 @@ class QuestBoardViewModel(
                 }
 
                 // Step 2: for each friend, fetch their liked quests in parallel
-                coroutineScope {
-                    activeStreaks.map { streak ->
+                val feedbackByFriendUid = coroutineScope {
+                    activeStreaks
+                        .mapNotNull { streak -> streak.otherMemberId(uid) }
+                        .distinct()
+                        .map { friendUid ->
                         async {
-                            val friendUid = streak.otherMemberId(uid)
-                                ?: return@async emptyList<FriendLikedQuest>()
-                            val friendName = streak.otherMemberName(uid)
-                            runCatching {
+                            friendUid to runCatching {
                                 withTimeout(8_000L) {
                                     feedbackRepository.getFeedback(friendUid)
                                 }
                             }.getOrDefault(emptyList())
-                                .filter { it.feedbackType == QuestFeedbackType.Like }
-                                .mapNotNull { feedback ->
-                                    // Step 3: resolve the quest object by id
-                                    questRepository.getQuestById(feedback.questId)?.let { quest ->
-                                        FriendLikedQuest(friendName, quest)
-                                    }
-                                }
                         }
-                    }.awaitAll().flatten()
+                    }.awaitAll().toMap()
                 }
+
+                // Step 3: resolve the liked quest ids to board cards
+                QuestBoardLogic.friendLikedQuests(
+                    currentUid = uid,
+                    streaks = activeStreaks,
+                    feedbackByFriendUid = feedbackByFriendUid,
+                    questById = questRepository::getQuestById
+                )
             }.onSuccess { results ->
                 friendLikedQuests = results
             }.onFailure {

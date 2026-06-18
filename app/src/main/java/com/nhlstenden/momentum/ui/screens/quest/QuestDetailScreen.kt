@@ -38,6 +38,8 @@ fun QuestDetailScreen(
     onBack: () -> Unit = {},
     onStart: () -> Unit = {},
     onComplete: () -> Unit = {},
+    onUpdateProgress: () -> Unit = {},
+    canUpdateProgress: Boolean = true,
     onSaveForLater: () -> Unit = {},
     onSkip: () -> Unit = {},
     selectedFeedback: QuestFeedbackType? = null,
@@ -59,65 +61,163 @@ fun QuestDetailScreen(
 
         if (quest == null) {
             MissingQuestContent(onBack)
-            return@Column
-        }
-
-        MomentumCard {
-            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    MomentumChip(quest.category.label, variant = ChipVariant.Category)
-                    MomentumChip(quest.status.label, variant = quest.status.chipVariant())
-                }
-                Text(quest.title, style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    quest.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MomentumChip("${quest.difficulty.label} · ${quest.estimatedMinutes} min", variant = ChipVariant.Neutral)
-                }
-            }
-        }
-
-        MomentumCard {
-            Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Steps", style = MaterialTheme.typography.titleLarge)
-                quest.steps.forEachIndexed { index, step ->
+        } else {
+            MomentumCard {
+                Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        MomentumChip(quest.category.label, variant = ChipVariant.Category)
+                        MomentumChip(quest.status.label, variant = quest.status.chipVariant())
+                    }
+                    Text(quest.title, style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        "${index + 1}. $step",
+                        quest.description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MomentumChip(
+                            if (quest.isLongTerm) {
+                                "${quest.difficulty.label} · ${quest.targetProgress} ${quest.progressUnit}"
+                            } else {
+                                "${quest.difficulty.label} · ${quest.estimatedMinutes} min"
+                            },
+                            variant = ChipVariant.Neutral
+                        )
+                    }
                 }
             }
+
+            if (quest.isLongTerm) {
+                LongTermProgressCard(quest = quest)
+            }
+
+            MomentumCard {
+                Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Steps", style = MaterialTheme.typography.titleLarge)
+                    quest.steps.forEachIndexed { index, step ->
+                        Text(
+                            "${index + 1}. $step",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            QuestFeedbackCard(
+                selectedFeedback = selectedFeedback,
+                onFeedbackSelected = onFeedbackSelected
+            )
+
+            if (quest.isLongTerm) {
+                LongTermQuestActions(
+                    quest = quest,
+                    onBack = onBack,
+                    onStart = onStart,
+                    onUpdateProgress = onUpdateProgress,
+                    canUpdateProgress = canUpdateProgress,
+                    onSaveForLater = onSaveForLater,
+                    onSkip = onSkip
+                )
+            } else {
+                DailyQuestActions(
+                    quest = quest,
+                    onBack = onBack,
+                    onStart = onStart,
+                    onComplete = onComplete,
+                    onSaveForLater = onSaveForLater,
+                    onSkip = onSkip
+                )
+            }
         }
+    }
+}
 
-        QuestFeedbackCard(
-            selectedFeedback = selectedFeedback,
-            onFeedbackSelected = onFeedbackSelected
-        )
-
-        when (quest.status) {
-            QuestStatus.Available -> {
-                MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
-                MomentumSecondaryButton("Save for later", onSaveForLater, Modifier.fillMaxWidth())
+@Composable
+private fun LongTermQuestActions(
+    quest: Quest,
+    onBack: () -> Unit,
+    onStart: () -> Unit,
+    onUpdateProgress: () -> Unit,
+    canUpdateProgress: Boolean,
+    onSaveForLater: () -> Unit,
+    onSkip: () -> Unit
+) {
+    when (quest.status) {
+        QuestStatus.Available -> {
+            MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
+            MomentumSecondaryButton("Save for later", onSaveForLater, Modifier.fillMaxWidth())
+            MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+        }
+        QuestStatus.Active -> {
+            MomentumPrimaryButton(
+                text = if (canUpdateProgress) "Log 1 ${quest.progressUnit}" else "Progress logged today",
+                onClick = onUpdateProgress,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = canUpdateProgress
+            )
+            if (canUpdateProgress) {
                 MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
-            }
-            QuestStatus.Active -> {
-                MomentumPrimaryButton("Done for today", onComplete, Modifier.fillMaxWidth())
-                MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
-            }
-            QuestStatus.Completed -> {
+            } else {
                 MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
             }
-            QuestStatus.Skipped -> {
-                MomentumPrimaryButton("Start again", onStart, Modifier.fillMaxWidth())
-                MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
-            }
+        }
+        QuestStatus.Completed -> {
+            MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+        }
+        QuestStatus.Skipped -> {
+            MomentumPrimaryButton("Start again", onStart, Modifier.fillMaxWidth())
+            MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun DailyQuestActions(
+    quest: Quest,
+    onBack: () -> Unit,
+    onStart: () -> Unit,
+    onComplete: () -> Unit,
+    onSaveForLater: () -> Unit,
+    onSkip: () -> Unit
+) {
+    when (quest.status) {
+        QuestStatus.Available -> {
+            MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
+            MomentumSecondaryButton("Save for later", onSaveForLater, Modifier.fillMaxWidth())
+            MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+        }
+        QuestStatus.Active -> {
+            MomentumPrimaryButton("Done for today", onComplete, Modifier.fillMaxWidth())
+            MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+        }
+        QuestStatus.Completed -> {
+            MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+        }
+        QuestStatus.Skipped -> {
+            MomentumPrimaryButton("Start again", onStart, Modifier.fillMaxWidth())
+            MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun LongTermProgressCard(quest: Quest) {
+    MomentumCard {
+        Column(it, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Long-term progress", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "${quest.currentProgress}/${quest.targetProgress} ${quest.progressUnit}",
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Text(
+                if (quest.status == QuestStatus.Completed) "Goal reached." else "Update this as you make progress across days or weeks.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

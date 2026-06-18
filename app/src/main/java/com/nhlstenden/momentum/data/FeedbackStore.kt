@@ -3,9 +3,8 @@ package com.nhlstenden.momentum.data
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import java.text.SimpleDateFormat
+import com.nhlstenden.momentum.util.MomentumDateFormat
 import java.util.Date
-import java.util.Locale
 
 // Saves user feedback to Cloud Firestore under the "feedback" collection.
 // Each document contains the message text and a local timestamp.
@@ -23,7 +22,7 @@ object FeedbackStore {
         onSuccess: () -> Unit = {},
         onError: (Exception) -> Unit = {}
     ) {
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        val timestamp = MomentumDateFormat.formatIsoDateTime(Date())
         val data = hashMapOf(
             "message" to message.trim(),
             "timestamp" to timestamp,

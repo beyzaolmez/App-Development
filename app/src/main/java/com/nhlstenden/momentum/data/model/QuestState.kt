@@ -8,5 +8,9 @@ data class QuestState(
     val isDailyAssigned: Boolean,
     val startedAt: Long? = null,
     val completedAt: Long? = null,
-    val skippedAt: Long? = null
+    val skippedAt: Long? = null,
+    val currentProgress: Int = 0,
+    val targetProgress: Int = 1,
+    val progressUnit: String = "completion",
+    val lastProgressUpdatedAt: Long? = null
 )
