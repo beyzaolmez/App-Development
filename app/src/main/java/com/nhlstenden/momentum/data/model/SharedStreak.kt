@@ -31,6 +31,8 @@ data class SharedStreak(
     val currentStreak: Int = 0,
     // uid -> last "yyyy-MM-dd" on which that member completed a quest.
     val lastCompletionDates: Map<String, String> = emptyMap(),
+    // uid -> quest ids liked by that member while this shared streak is active.
+    val likedQuestIdsByMember: Map<String, List<String>> = emptyMap(),
     // The day the streak last advanced (both members done). Null until it first advances.
     val lastIncrementDate: String? = null,
     val createdAt: Long = 0L
@@ -43,6 +45,9 @@ data class SharedStreak(
     /** True once both members have completed a quest today (today already counted). */
     fun bothCompletedOn(date: String): Boolean =
         memberIds.isNotEmpty() && memberIds.all { lastCompletionDates[it] == date }
+
+    fun likedQuestIdsFor(uid: String): List<String> =
+        likedQuestIdsByMember[uid].orEmpty()
 }
 
 enum class SharedStreakStatus { Pending, Active, Declined }
@@ -105,6 +110,19 @@ object SharedStreakLogic {
         val continuingRun = streak.lastIncrementDate == previousDay(today)
         val newCount = if (continuingRun) streak.currentStreak + 1 else 1
         return candidate.copy(currentStreak = newCount, lastIncrementDate = today)
+    }
+
+    fun recordLike(streak: SharedStreak, uid: String, questId: String): SharedStreak {
+        if (streak.status != SharedStreakStatus.Active) return streak
+        if (uid !in streak.memberIds) return streak
+        if (questId.isBlank()) return streak
+
+        val currentLikedQuestIds = streak.likedQuestIdsFor(uid)
+        if (questId in currentLikedQuestIds) return streak
+
+        return streak.copy(
+            likedQuestIdsByMember = streak.likedQuestIdsByMember + (uid to (currentLikedQuestIds + questId))
+        )
     }
 
     /**

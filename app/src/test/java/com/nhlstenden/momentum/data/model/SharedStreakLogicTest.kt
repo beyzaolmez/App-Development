@@ -68,9 +68,11 @@ class SharedStreakLogicTest {
 
         val updated = SharedStreakLogic.recordCompletion(pending, "alice", "2026-06-17")
         val evaluated = SharedStreakLogic.evaluateForToday(pending, "2026-06-17")
+        val liked = SharedStreakLogic.recordLike(pending, "alice", "quest-1")
 
         assertEquals(pending, updated)
         assertEquals(pending, evaluated)
+        assertEquals(pending, liked)
     }
 
     @Test
@@ -83,5 +85,15 @@ class SharedStreakLogicTest {
 
         assertEquals(1, updated.currentStreak)
         assertEquals("2026-06-17", updated.lastIncrementDate)
+    }
+
+    @Test
+    fun recordLikeStoresUniqueQuestIdsForActiveMembers() {
+        val first = SharedStreakLogic.recordLike(activeStreak, "alice", "quest-1")
+        val duplicate = SharedStreakLogic.recordLike(first, "alice", "quest-1")
+        val second = SharedStreakLogic.recordLike(duplicate, "bob", "quest-2")
+
+        assertEquals(listOf("quest-1"), second.likedQuestIdsFor("alice"))
+        assertEquals(listOf("quest-2"), second.likedQuestIdsFor("bob"))
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +42,6 @@ import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
-import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.components.MomentumTextField
@@ -53,6 +51,7 @@ import com.nhlstenden.momentum.viewmodel.SharedStreakViewModel
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit = {},
+    onOpenQuestBoard: () -> Unit = {},
     sharedStreakViewModel: SharedStreakViewModel = viewModel()
 ) {
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
@@ -93,6 +92,7 @@ fun FriendsScreen(
             sharedStreakViewModel.invite(inviteEmail)
             inviteEmail = ""
         },
+        onOpenQuestBoard = onOpenQuestBoard,
         onClearInviteFeedback = sharedStreakViewModel::clearInviteFeedback
     )
 }
@@ -121,6 +121,7 @@ private fun FriendsScreenWithTabs(
     inviteError: String?,
     inviteSuccess: String?,
     onSendInvite: () -> Unit,
+    onOpenQuestBoard: () -> Unit,
     onClearInviteFeedback: () -> Unit
 ) {
     Scaffold(
@@ -195,7 +196,8 @@ private fun FriendsScreenWithTabs(
                     currentUid = currentUid,
                     isSignedIn = isSignedIn,
                     activeStreaks = activeStreaks,
-                    friendStreaks = friendStreaks
+                    friendStreaks = friendStreaks,
+                    onOpenQuestBoard = onOpenQuestBoard
                 )
                 1 -> StreaksTab(
                     currentUid = currentUid,
@@ -233,7 +235,8 @@ private fun ConnectionsTab(
     currentUid: String?,
     isSignedIn: Boolean,
     activeStreaks: List<SharedStreak>,
-    friendStreaks: List<FriendStreak>
+    friendStreaks: List<FriendStreak>,
+    onOpenQuestBoard: () -> Unit
 ) {
     if (!isSignedIn) {
         MomentumStatusCard(
@@ -269,6 +272,12 @@ private fun ConnectionsTab(
             )
         }
     }
+
+    MomentumSecondaryButton(
+        text = "See friend-liked quests",
+        onClick = onOpenQuestBoard,
+        modifier = Modifier.fillMaxWidth()
+    )
     
     // Personal streaks of friends
     if (friendStreaks.isNotEmpty()) {
@@ -725,6 +734,7 @@ private fun FriendsPreview() {
             inviteError = null,
             inviteSuccess = null,
             onSendInvite = {},
+            onOpenQuestBoard = {},
             onClearInviteFeedback = {}
         )
     }

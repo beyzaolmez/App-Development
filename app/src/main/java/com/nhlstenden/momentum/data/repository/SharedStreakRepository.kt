@@ -43,6 +43,9 @@ interface SharedStreakRepository {
      */
     suspend fun recordCompletion(uid: String, today: String = SharedStreakLogic.today())
 
+    /** Mirrors a liked quest into each Active shared streak so friends can see it. */
+    suspend fun recordQuestLike(uid: String, questId: String)
+
     /**
      * Checks if there is already an active or pending streak between uid1 and uid2.
      * Used to prevent duplicate invitations.
@@ -107,6 +110,14 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
             .filter { it.status == SharedStreakStatus.Active && uid in it.memberIds }
             .forEach { streak ->
                 streaks[streak.id] = SharedStreakLogic.recordCompletion(streak, uid, today)
+            }
+    }
+
+    override suspend fun recordQuestLike(uid: String, questId: String) {
+        streaks.values
+            .filter { it.status == SharedStreakStatus.Active && uid in it.memberIds }
+            .forEach { streak ->
+                streaks[streak.id] = SharedStreakLogic.recordLike(streak, uid, questId)
             }
     }
 
@@ -214,6 +225,27 @@ class FirestoreSharedStreakRepository(
         }
     }
 
+    override suspend fun recordQuestLike(uid: String, questId: String) {
+        val activeRefs = collection
+            .whereArrayContains("memberIds", uid)
+            .get()
+            .await()
+            .documents
+            .filter { it.getString("status") == SharedStreakStatus.Active.name }
+            .map { it.reference }
+
+        activeRefs.forEach { reference ->
+            firestore.runTransaction { transaction ->
+                val streak = transaction.get(reference).toSharedStreak()
+                    ?: return@runTransaction
+                val updated = SharedStreakLogic.recordLike(streak, uid, questId)
+                if (updated != streak) {
+                    transaction.set(reference, updated.toFirestoreMap())
+                }
+            }.await()
+        }
+    }
+
     override suspend fun hasExistingStreakWithUser(uid1: String, uid2: String): Boolean {
         // Query for any streak where both users are members and status is Active or Pending
         val snapshot = collection
@@ -241,6 +273,7 @@ private fun SharedStreak.toFirestoreMap(): Map<String, Any?> = mapOf(
     "invitedByUid" to invitedByUid,
     "currentStreak" to currentStreak,
     "lastCompletionDates" to lastCompletionDates,
+    "likedQuestIdsByMember" to likedQuestIdsByMember,
     "lastIncrementDate" to lastIncrementDate,
     "createdAt" to createdAt
 )
@@ -265,6 +298,14 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toSharedStreak(): Sha
         }
         ?.toMap()
         .orEmpty()
+    val likedQuestIdsByMember = (get("likedQuestIdsByMember") as? Map<*, *>)
+        ?.mapNotNull { (key, value) ->
+            val k = key as? String ?: return@mapNotNull null
+            val likedQuestIds = (value as? List<*>)?.mapNotNull { it as? String } ?: return@mapNotNull null
+            k to likedQuestIds
+        }
+        ?.toMap()
+        .orEmpty()
     val status = (getString("status"))
         ?.let { name -> SharedStreakStatus.values().firstOrNull { it.name == name } }
         ?: SharedStreakStatus.Pending
@@ -277,6 +318,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toSharedStreak(): Sha
         invitedByUid = getString("invitedByUid").orEmpty(),
         currentStreak = (get("currentStreak") as? Number)?.toInt() ?: 0,
         lastCompletionDates = lastCompletionDates,
+        likedQuestIdsByMember = likedQuestIdsByMember,
         lastIncrementDate = getString("lastIncrementDate"),
         createdAt = (get("createdAt") as? Number)?.toLong() ?: 0L
     )

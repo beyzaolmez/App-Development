@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,7 @@ import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.util.HapticHelper
 
 @Composable
 fun QuestReflectionScreen(
@@ -49,6 +51,7 @@ fun QuestReflectionScreen(
     val quickTakeOptions = listOf("Great", "Good", "Okay", "Not for me")
     var selectedQuickTake by rememberSaveable(quest?.id) { mutableStateOf<String?>(null) }
     var note by rememberSaveable(quest?.id) { mutableStateOf("") }
+    val view = LocalView.current
 
     Column(
         modifier = Modifier
@@ -165,7 +168,11 @@ fun QuestReflectionScreen(
 
         MomentumPrimaryButton(
             "Save reflection",
-            { onSave(note, prompt, selectedQuickTake) },
+            {
+                if (onSave(note, prompt, selectedQuickTake)) {
+                    HapticHelper.questComplete(view)
+                }
+            },
             Modifier.fillMaxWidth()
         )
         MomentumQuietButton("Skip", onClose, Modifier.fillMaxWidth())

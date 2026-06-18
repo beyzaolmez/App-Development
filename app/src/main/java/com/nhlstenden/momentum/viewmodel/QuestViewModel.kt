@@ -279,7 +279,10 @@ class QuestViewModel(
      * rejected silently: if the quest is already liked, nothing is written again.
      */
     fun likeQuest(id: String) {
-        if (QuestFeedbackRules.isDuplicateLike(feedbackByQuestId[id], QuestFeedbackType.Like)) return
+        if (QuestFeedbackRules.isDuplicateLike(feedbackByQuestId[id], QuestFeedbackType.Like)) {
+            publishSharedQuestLike(id)
+            return
+        }
         saveFeedback(id, QuestFeedbackType.Like)
     }
 
@@ -318,6 +321,26 @@ class QuestViewModel(
                 )
             }.onFailure {
                 errorMessage = FriendlyErrorMessages.questFeedbackSave()
+            }
+
+            if (feedbackType == QuestFeedbackType.Like) {
+                runCatching {
+                    withTimeout(FIRESTORE_TIMEOUT_MS) {
+                        sharedStreakRepository.recordQuestLike(uid, id)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun publishSharedQuestLike(id: String) {
+        val uid = auth.currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) {
+                    sharedStreakRepository.recordQuestLike(uid, id)
+                }
             }
         }
     }

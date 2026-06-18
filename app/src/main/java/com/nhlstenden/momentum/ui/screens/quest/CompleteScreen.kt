@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.util.HapticHelper
 
 @Composable
 fun CompleteScreen(
@@ -22,6 +25,11 @@ fun CompleteScreen(
     onReflect: () -> Unit = {},
     onHome: () -> Unit = {}
 ) {
+    val view = LocalView.current
+    LaunchedEffect(Unit) {
+        HapticHelper.questComplete(view)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
