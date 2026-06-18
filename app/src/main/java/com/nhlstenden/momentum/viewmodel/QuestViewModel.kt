@@ -55,7 +55,7 @@ class QuestViewModel(
 ) : ViewModel() {
     private val dailyQuestLimit = 3
     private val today: String
-        get() = dateFormat.format(Date())
+        get() = dateFormat.get()!!.format(Date())
 
     private var localCache: QuestLocalCache? = null
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
@@ -737,7 +737,7 @@ class QuestViewModel(
 
     private fun Quest.wasProgressUpdatedToday(now: Long = System.currentTimeMillis()): Boolean {
         val updatedAt = lastProgressUpdatedAt ?: return false
-        return dateFormat.format(Date(updatedAt)) == dateFormat.format(Date(now))
+        return dateFormat.get()!!.format(Date(updatedAt)) == dateFormat.get()!!.format(Date(now))
     }
 }
 
@@ -758,12 +758,14 @@ private const val DIRECT_FEEDBACK_WEIGHT = 100
 private const val DEMO_REFLECTION_UID = "demo-reflections"
 private const val DEFAULT_REFLECTION_PROMPT = "What did you notice, learn, or want to do differently next time?"
 
-private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+private val dateFormat = ThreadLocal.withInitial {
+    SimpleDateFormat("yyyy-MM-dd", Locale.US)
+}
 
 private fun yesterday(): String {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.DAY_OF_YEAR, -1)
-    return dateFormat.format(calendar.time)
+    return dateFormat.get()!!.format(calendar.time)
 }
 
 private val QuestStatus.sortOrder: Int
@@ -781,7 +783,7 @@ private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<
 
 private fun List<QuestState>.filterForCurrentQuests(quests: List<Quest>): List<QuestState> {
     val longTermQuestIds = quests.filter { it.isLongTerm }.map { it.id }.toSet()
-    return filter { state -> state.date == dateFormat.format(Date()) || state.questId in longTermQuestIds }
+    return filter { state -> state.date == dateFormat.get()!!.format(Date()) || state.questId in longTermQuestIds }
 }
 
 private fun preferredProgress(

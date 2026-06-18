@@ -14,14 +14,16 @@ object StreakStore {
     private const val KEY_STREAK = "streak_count"
     private const val KEY_LAST_DATE = "last_completed_date"
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val dateFormat = ThreadLocal.withInitial {
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    }
 
-    private fun today(): String = dateFormat.format(Calendar.getInstance().time)
+    private fun today(): String = dateFormat.get()!!.format(Calendar.getInstance().time)
 
     private fun yesterday(): String {
         val cal = Calendar.getInstance()
         cal.add(Calendar.DAY_OF_YEAR, -1)
-        return dateFormat.format(cal.time)
+        return dateFormat.get()!!.format(cal.time)
     }
 
     // Call this when a quest is completed.

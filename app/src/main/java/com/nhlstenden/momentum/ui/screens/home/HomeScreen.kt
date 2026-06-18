@@ -23,11 +23,9 @@ import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.QuestCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.util.MomentumDateFormat
 import com.nhlstenden.momentum.viewmodel.QuestDataMode
 import com.nhlstenden.momentum.viewmodel.QuestViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -184,4 +182,4 @@ private fun HomeScreenPreview() {
 }
 
 private fun currentWeekday(): String =
-    SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+    MomentumDateFormat.formatWeekday()
