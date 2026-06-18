@@ -28,6 +28,7 @@ import com.nhlstenden.momentum.ui.screens.auth.SignInScreen
 import com.nhlstenden.momentum.ui.screens.auth.SignUpScreen
 import com.nhlstenden.momentum.ui.screens.auth.WelcomeScreen
 import com.nhlstenden.momentum.ui.screens.friends.FriendsScreen
+import com.nhlstenden.momentum.ui.screens.friends.QuestBoardScreen
 import com.nhlstenden.momentum.ui.screens.home.HomeScreen
 import com.nhlstenden.momentum.ui.screens.onboarding.InterestSelectionScreen
 import com.nhlstenden.momentum.ui.screens.onboarding.OnboardingScreen
@@ -170,7 +171,13 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                 ProgressScreen(overview = questViewModel.progressOverview())
             }
             composable(Routes.Friends) {
-                FriendsScreen(onBack = { navController.popBackStack() })
+                FriendsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenQuestBoard = { navController.navigate(Routes.QuestBoard) }
+                )
+            }
+            composable(Routes.QuestBoard) {
+                QuestBoardScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.Profile) {
                 val firebaseUser = FirebaseAuth.getInstance().currentUser

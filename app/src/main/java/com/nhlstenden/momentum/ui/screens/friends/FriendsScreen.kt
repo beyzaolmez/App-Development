@@ -40,6 +40,7 @@ import com.nhlstenden.momentum.viewmodel.SharedStreakViewModel
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit = {},
+    onOpenQuestBoard: () -> Unit = {},
     viewModel: SharedStreakViewModel = viewModel()
 ) {
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
@@ -69,6 +70,7 @@ fun FriendsScreen(
         onRefresh = viewModel::refresh,
         onAccept = viewModel::accept,
         onDecline = viewModel::decline,
+        onOpenQuestBoard = onOpenQuestBoard,
         onBack = onBack
     )
 }
@@ -93,6 +95,7 @@ private fun FriendsContent(
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onDecline: (String) -> Unit,
+    onOpenQuestBoard: () -> Unit,
     onBack: () -> Unit
 ) {
     Column(
@@ -170,6 +173,13 @@ private fun FriendsContent(
                 FriendStreakRow(friend)
             }
         }
+
+        // ---- Quest board entry point ----
+        MomentumSecondaryButton(
+            text = "See friend-liked quests",
+            onClick = onOpenQuestBoard,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // ---- Outgoing (waiting) invitations ----
         outgoingInvitations.forEach { streak ->
@@ -400,6 +410,7 @@ private fun FriendsPreview() {
             onRefresh = {},
             onAccept = {},
             onDecline = {},
+            onOpenQuestBoard = {},
             onBack = {}
         )
     }
