@@ -72,6 +72,39 @@ class QuestBoardLogicTest {
         assertEquals(listOf("first", "second"), refreshedResult.map { it.quest.id })
     }
 
+    @Test
+    fun `friend liked quests includes activity from multiple active friends`() {
+        val quests = listOf(
+            quest("shared", "Shared quest"),
+            quest("solo", "Solo quest")
+        ).associateBy { it.id }
+
+        val results = QuestBoardLogic.friendLikedQuests(
+            currentUid = "me",
+            streaks = listOf(
+                streak("noor", "Noor", SharedStreakStatus.Active),
+                streak("alex", "Alex", SharedStreakStatus.Active)
+            ),
+            feedbackByFriendUid = mapOf(
+                "noor" to listOf(feedback("shared", QuestFeedbackType.Like)),
+                "alex" to listOf(
+                    feedback("shared", QuestFeedbackType.Like),
+                    feedback("solo", QuestFeedbackType.Like)
+                )
+            ),
+            questById = quests::get
+        )
+
+        assertEquals(
+            listOf(
+                "Noor" to "shared",
+                "Alex" to "shared",
+                "Alex" to "solo"
+            ),
+            results.map { it.friendName to it.quest.id }
+        )
+    }
+
     private fun streak(friendUid: String, friendName: String, status: SharedStreakStatus) =
         SharedStreak(
             id = "streak-$friendUid",

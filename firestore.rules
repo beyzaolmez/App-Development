@@ -54,7 +54,8 @@ service cloud.firestore {
       }
 
       match /questFeedback/{feedbackId} {
-        allow get, list, create, update, delete: if isSelf(userId);
+        allow get, list: if signedIn();
+        allow create, update, delete: if isSelf(userId);
       }
     }
 

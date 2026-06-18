@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nhlstenden.momentum.data.model.Quest
@@ -31,6 +32,7 @@ import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
 import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumSecondaryButton
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.util.HapticHelper
 
 @Composable
 fun QuestDetailScreen(
@@ -184,6 +186,8 @@ private fun DailyQuestActions(
     onSaveForLater: () -> Unit,
     onSkip: () -> Unit
 ) {
+    val view = LocalView.current
+
     when (quest.status) {
         QuestStatus.Available -> {
             MomentumPrimaryButton("Start quest", onStart, Modifier.fillMaxWidth())
@@ -191,7 +195,14 @@ private fun DailyQuestActions(
             MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
         }
         QuestStatus.Active -> {
-            MomentumPrimaryButton("Done for today", onComplete, Modifier.fillMaxWidth())
+            MomentumPrimaryButton(
+                text = "Done for today",
+                onClick = {
+                    HapticHelper.questComplete(view)
+                    onComplete()
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
             MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
         }
         QuestStatus.Completed -> {
