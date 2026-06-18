@@ -37,9 +37,6 @@ import com.nhlstenden.momentum.data.model.FriendStreak
 import com.nhlstenden.momentum.data.model.SharedStreak
 import com.nhlstenden.momentum.data.model.SharedStreakLogic
 import com.nhlstenden.momentum.data.model.SharedStreakStatus
-import com.nhlstenden.momentum.data.repository.FirestoreUserRepository
-import com.nhlstenden.momentum.data.repository.UserRepository
-import com.nhlstenden.momentum.navigation.FriendsRoutes
 import com.nhlstenden.momentum.navigation.FriendsTabs
 import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
@@ -52,67 +49,19 @@ import com.nhlstenden.momentum.ui.components.MomentumStatusCard
 import com.nhlstenden.momentum.ui.components.MomentumTextField
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 import com.nhlstenden.momentum.viewmodel.SharedStreakViewModel
-import kotlinx.coroutines.launch
-
-data class SearchResult(
-    val uid: String,
-    val displayName: String,
-    val email: String,
-    val isAlreadyConnected: Boolean = false
-)
 
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit = {},
-    sharedStreakViewModel: SharedStreakViewModel = viewModel(),
-    userRepository: UserRepository = remember { FirestoreUserRepository() }
+    sharedStreakViewModel: SharedStreakViewModel = viewModel()
 ) {
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     
     // Track selected tab (0 = Connections, 1 = Streaks, 2 = Find)
     var selectedTab by remember { mutableIntStateOf(0) }
     
-    // Search state for Find Friends tab
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<SearchResult>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var searchError by remember { mutableStateOf<String?>(null) }
-    val coroutineScope = rememberCoroutineScope()
-    
-    // Invite state (shared between tabs)
+    // Invite state for Find Friends tab (using direct invite like old working tab)
     var inviteEmail by remember { mutableStateOf("") }
-
-    fun performSearch() {
-        val query = searchQuery.trim()
-        if (query.isBlank() || currentUid == null) return
-
-        coroutineScope.launch {
-            isSearching = true
-            searchError = null
-            try {
-                val users = userRepository.searchByEmail(query, currentUid)
-                // Check if each user is already connected via a streak
-                val connectedUserIds = (
-                    sharedStreakViewModel.activeStreaks +
-                    sharedStreakViewModel.incomingInvitations +
-                    sharedStreakViewModel.outgoingInvitations
-                ).flatMap { it.memberIds }.toSet()
-                
-                searchResults = users.map { 
-                    SearchResult(
-                        it.uid, 
-                        it.displayName, 
-                        it.email,
-                        isAlreadyConnected = it.uid in connectedUserIds
-                    ) 
-                }
-            } catch (e: Exception) {
-                searchError = "Search failed. Please try again."
-            } finally {
-                isSearching = false
-            }
-        }
-    }
 
     FriendsScreenWithTabs(
         currentUid = currentUid,
@@ -131,20 +80,7 @@ fun FriendsScreen(
         onRefresh = sharedStreakViewModel::refresh,
         onAccept = sharedStreakViewModel::accept,
         onDecline = sharedStreakViewModel::decline,
-        // Search/Invite actions for Find tab
-        searchQuery = searchQuery,
-        onSearchQueryChange = { searchQuery = it },
-        onSearchUsers = ::performSearch,
-        searchResults = searchResults,
-        isSearching = isSearching,
-        searchError = searchError,
-        onClearSearchError = { searchError = null },
-        onInviteFromSearch = { email ->
-            sharedStreakViewModel.invite(email)
-            searchQuery = ""
-            searchResults = emptyList()
-        },
-        // Direct invite for Streaks tab
+        // Find Friends tab (direct invite like old working tab)
         inviteEmail = inviteEmail,
         onInviteEmailChange = { 
             inviteEmail = it
@@ -156,7 +92,8 @@ fun FriendsScreen(
         onSendInvite = {
             sharedStreakViewModel.invite(inviteEmail)
             inviteEmail = ""
-        }
+        },
+        onClearInviteFeedback = sharedStreakViewModel::clearInviteFeedback
     )
 }
 
@@ -177,22 +114,14 @@ private fun FriendsScreenWithTabs(
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onDecline: (String) -> Unit,
-    // Search/Find tab
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onSearchUsers: () -> Unit,
-    searchResults: List<SearchResult>,
-    isSearching: Boolean,
-    searchError: String?,
-    onClearSearchError: () -> Unit,
-    onInviteFromSearch: (String) -> Unit,
-    // Direct invite
+    // Find Friends tab (uses direct invite like old working tab)
     inviteEmail: String,
     onInviteEmailChange: (String) -> Unit,
     inviteInProgress: Boolean,
     inviteError: String?,
     inviteSuccess: String?,
-    onSendInvite: () -> Unit
+    onSendInvite: () -> Unit,
+    onClearInviteFeedback: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -277,26 +206,20 @@ private fun FriendsScreenWithTabs(
                     incomingInvitations = incomingInvitations,
                     outgoingInvitations = outgoingInvitations,
                     declinedInvitations = declinedInvitations,
-                    inviteEmail = inviteEmail,
-                    onInviteEmailChange = onInviteEmailChange,
-                    inviteInProgress = inviteInProgress,
-                    inviteError = inviteError,
-                    inviteSuccess = inviteSuccess,
-                    onSendInvite = onSendInvite,
+                    onGoToFindFriends = { onTabSelected(2) },
                     onRefresh = onRefresh,
                     onAccept = onAccept,
                     onDecline = onDecline
                 )
                 2 -> FindFriendsTab(
                     isSignedIn = isSignedIn,
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = onSearchQueryChange,
-                    onSearchUsers = onSearchUsers,
-                    searchResults = searchResults,
-                    isSearching = isSearching,
-                    searchError = searchError,
-                    onClearSearchError = onClearSearchError,
-                    onInviteFromSearch = onInviteFromSearch
+                    inviteEmail = inviteEmail,
+                    onInviteEmailChange = onInviteEmailChange,
+                    inviteInProgress = inviteInProgress,
+                    inviteError = inviteError,
+                    inviteSuccess = inviteSuccess,
+                    onSendInvite = onSendInvite,
+                    onClearInviteFeedback = onClearInviteFeedback
                 )
             }
             
@@ -322,8 +245,8 @@ private fun ConnectionsTab(
     }
     
     val allFriends = activeStreaks.map { streak ->
-        val otherUid = currentUid?.let { streak.otherMemberId(it) }
-        val otherName = otherUid?.let { streak.otherMemberName(it) } ?: "Friend"
+        // otherMemberName takes the CURRENT user's uid and returns the other member's name.
+        val otherName = currentUid?.let { streak.otherMemberName(it) } ?: "Friend"
         otherName to streak.currentStreak
     }.distinct()
     
@@ -370,12 +293,7 @@ private fun StreaksTab(
     incomingInvitations: List<SharedStreak>,
     outgoingInvitations: List<SharedStreak>,
     declinedInvitations: List<SharedStreak>,
-    inviteEmail: String,
-    onInviteEmailChange: (String) -> Unit,
-    inviteInProgress: Boolean,
-    inviteError: String?,
-    inviteSuccess: String?,
-    onSendInvite: () -> Unit,
+    onGoToFindFriends: () -> Unit,
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onDecline: (String) -> Unit
@@ -389,47 +307,23 @@ private fun StreaksTab(
         return
     }
     
-    // Invite section at top
-    Text(
-        "Start a new streak",
-        style = MaterialTheme.typography.titleLarge
-    )
-    Text(
-        "Enter your friend's email to invite them to a shared streak.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    
-    MomentumTextField(
-        value = inviteEmail,
-        onValueChange = onInviteEmailChange,
-        placeholder = "friend@example.com",
-        keyboardType = KeyboardType.Email,
-        errorText = inviteError
-    )
-    if (inviteSuccess != null) {
-        Text(
-            inviteSuccess,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary
+    // Header with refresh and invite button
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        MomentumSecondaryButton(
+            text = if (isLoading) "..." else "Refresh",
+            onClick = onRefresh,
+            modifier = Modifier.weight(1f),
+            enabled = !isLoading
+        )
+        MomentumPrimaryButton(
+            text = "+ Invite friend",
+            onClick = onGoToFindFriends,
+            modifier = Modifier.weight(1f)
         )
     }
-    MomentumPrimaryButton(
-        text = if (inviteInProgress) "Sending…" else "Send invitation",
-        onClick = onSendInvite,
-        modifier = Modifier.fillMaxWidth(),
-        enabled = inviteEmail.isNotBlank() && !inviteInProgress
-    )
-    
-    Spacer(modifier = Modifier.height(16.dp))
-    
-    // Refresh button
-    MomentumSecondaryButton(
-        text = if (isLoading) "Refreshing..." else "Refresh",
-        onClick = onRefresh,
-        modifier = Modifier.fillMaxWidth(),
-        enabled = !isLoading
-    )
     
     if (loadError != null) {
         MomentumInlineError(loadError)
@@ -460,10 +354,15 @@ private fun StreaksTab(
     )
     
     if (activeStreaks.isEmpty() && !isLoading) {
-        Text(
-            "Start your first shared streak by inviting a friend above.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        MomentumStatusCard(
+            title = "No streaks yet",
+            message = "Go to the Find tab to search for friends and start your first shared streak.",
+            variant = ChipVariant.Neutral
+        )
+        MomentumSecondaryButton(
+            text = "Find friends",
+            onClick = onGoToFindFriends,
+            modifier = Modifier.fillMaxWidth()
         )
     }
     
@@ -508,14 +407,13 @@ private fun StreaksTab(
 @Composable
 private fun FindFriendsTab(
     isSignedIn: Boolean,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onSearchUsers: () -> Unit,
-    searchResults: List<SearchResult>,
-    isSearching: Boolean,
-    searchError: String?,
-    onClearSearchError: () -> Unit,
-    onInviteFromSearch: (String) -> Unit
+    inviteEmail: String,
+    onInviteEmailChange: (String) -> Unit,
+    inviteInProgress: Boolean,
+    inviteError: String?,
+    inviteSuccess: String?,
+    onSendInvite: () -> Unit,
+    onClearInviteFeedback: () -> Unit
 ) {
     if (!isSignedIn) {
         MomentumStatusCard(
@@ -531,58 +429,36 @@ private fun FindFriendsTab(
         style = MaterialTheme.typography.titleLarge
     )
     Text(
-        "Search by email to find people and invite them to a shared streak.",
+        "Enter your friend's email to invite them to a shared streak.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
     
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    MomentumTextField(
+        value = inviteEmail,
+        onValueChange = {
+            onInviteEmailChange(it)
+            onClearInviteFeedback()
+        },
+        placeholder = "friend@example.com",
+        keyboardType = KeyboardType.Email,
+        errorText = inviteError
+    )
+    
+    if (inviteSuccess != null) {
+        Text(
+            inviteSuccess,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+    
+    MomentumPrimaryButton(
+        text = if (inviteInProgress) "Sending…" else "Send invitation",
+        onClick = onSendInvite,
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        MomentumTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            placeholder = "Search by email",
-            modifier = Modifier.weight(1f)
-        )
-        MomentumSecondaryButton(
-            text = if (isSearching) "..." else "Search",
-            onClick = onSearchUsers,
-            enabled = !isSearching && searchQuery.isNotBlank()
-        )
-    }
-    
-    searchError?.let { 
-        MomentumInlineError(it)
-    }
-    
-    if (searchResults.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "${searchResults.size} result${if (searchResults.size == 1) "" else "s"}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        searchResults.forEach { user ->
-            SearchResultRow(
-                user = user,
-                onInvite = { 
-                    if (!user.isAlreadyConnected) {
-                        onInviteFromSearch(user.email)
-                    }
-                }
-            )
-        }
-    } else if (searchQuery.isNotBlank() && !isSearching) {
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "No users found. Try a different email.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+        enabled = inviteEmail.isNotBlank() && !inviteInProgress
+    )
 }
 
 @Composable
@@ -784,34 +660,6 @@ private fun SharedStreakCard(
     }
 }
 
-@Composable
-private fun SearchResultRow(
-    user: SearchResult,
-    onInvite: () -> Unit
-) {
-    MomentumCard {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(user.displayName, style = MaterialTheme.typography.titleLarge)
-                Text(
-                    user.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (user.isAlreadyConnected) {
-                MomentumChip("Connected", variant = ChipVariant.Skills)
-            } else {
-                MomentumPrimaryButton("Invite", onInvite)
-            }
-        }
-    }
-}
-
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable
 private fun FriendsPreview() {
@@ -870,22 +718,14 @@ private fun FriendsPreview() {
             onRefresh = {},
             onAccept = {},
             onDecline = {},
-            // Search
-            searchQuery = "",
-            onSearchQueryChange = {},
-            onSearchUsers = {},
-            searchResults = emptyList(),
-            isSearching = false,
-            searchError = null,
-            onClearSearchError = {},
-            onInviteFromSearch = {},
-            // Invite
+            // Find Friends
             inviteEmail = "",
             onInviteEmailChange = {},
             inviteInProgress = false,
             inviteError = null,
             inviteSuccess = null,
-            onSendInvite = {}
+            onSendInvite = {},
+            onClearInviteFeedback = {}
         )
     }
 }
