@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.nhlstenden.momentum.data.repository.AuthRepository
 import com.nhlstenden.momentum.util.FriendlyErrorMessages
+import com.nhlstenden.momentum.util.toFriendlyAccountDeletionMessage
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
@@ -23,6 +24,15 @@ class ProfileViewModel(
         private set
 
     var saveError by mutableStateOf<String?>(null)
+        private set
+
+    var isDeleting by mutableStateOf(false)
+        private set
+
+    var deleteError by mutableStateOf<String?>(null)
+        private set
+
+    var deleteSuccess by mutableStateOf(false)
         private set
 
     fun updateDisplayName(name: String) {
@@ -49,5 +59,37 @@ class ProfileViewModel(
 
     fun clearError() {
         saveError = null
+    }
+
+    /**
+     * Deletes the current user's account. This action is irreversible.
+     * On success, [deleteSuccess] will be true and the UI should navigate to login.
+     * On failure, [deleteError] will contain an error message.
+     */
+    fun deleteAccount() {
+        viewModelScope.launch {
+            isDeleting = true
+            deleteError = null
+            deleteSuccess = false
+
+            authRepository.deleteAccount()
+                .onSuccess {
+                    deleteSuccess = true
+                    isDeleting = false
+                }
+                .onFailure { error ->
+                    deleteError = error.toFriendlyAccountDeletionMessage()
+                    isDeleting = false
+                }
+        }
+    }
+
+    fun clearDeleteError() {
+        deleteError = null
+    }
+
+    fun resetDeleteState() {
+        deleteSuccess = false
+        deleteError = null
     }
 }
