@@ -10,6 +10,11 @@ import java.util.Locale
 interface UserRepository {
     suspend fun getUser(uid: String): User?
     suspend fun findByEmail(email: String): User?
+    /**
+     * Search users by email prefix. Returns users whose email starts with the query
+     * (case-insensitive), excluding the current user's own account.
+     */
+    suspend fun searchByEmail(query: String, excludeUid: String): List<User>
     fun observeUser(uid: String, onChange: (User?) -> Unit, onError: (Throwable) -> Unit): ListenerRegistration
     suspend fun saveUser(user: User)
     suspend fun updateDisplayName(uid: String, displayName: String)
@@ -25,6 +30,15 @@ class InMemoryUserRepository : UserRepository {
 
     override suspend fun findByEmail(email: String): User? =
         users.values.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
+
+    override suspend fun searchByEmail(query: String, excludeUid: String): List<User> {
+        val normalizedQuery = query.trim().lowercase(Locale.US)
+        if (normalizedQuery.isEmpty()) return emptyList()
+        return users.values.filter {
+            it.uid != excludeUid &&
+            it.email.lowercase(Locale.US).startsWith(normalizedQuery)
+        }
+    }
 
     override fun observeUser(
         uid: String,
@@ -90,6 +104,27 @@ class FirestoreUserRepository(
                 .firstOrNull { it.getString("email").orEmpty().equals(normalized, ignoreCase = true) }
             ?: return null
         return document.toUser(document.id)
+    }
+
+    override suspend fun searchByEmail(query: String, excludeUid: String): List<User> {
+        val normalizedQuery = query.trim().lowercase(Locale.US)
+        if (normalizedQuery.isEmpty()) return emptyList()
+
+        // Use prefix matching (>= query and <= query + \uf8ff) on emailLowercase.
+        // This finds emails that start with the query (e.g., "ale" matches "alex@example.com").
+        // The \uf8ff suffix is the highest Unicode code point, creating an upper bound.
+        val endRange = normalizedQuery + "\uf8ff"
+
+        val snapshot = firestore.collection("users")
+            .whereGreaterThanOrEqualTo("emailLowercase", normalizedQuery)
+            .whereLessThanOrEqualTo("emailLowercase", endRange)
+            .limit(20)
+            .get()
+            .await()
+
+        return snapshot.documents
+            .mapNotNull { doc -> doc.toUser(doc.id) }
+            .filter { it.uid != excludeUid }
     }
 
     override fun observeUser(
