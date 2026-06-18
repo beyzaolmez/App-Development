@@ -20,9 +20,7 @@ import com.nhlstenden.momentum.ui.components.ChipVariant
 import com.nhlstenden.momentum.ui.components.MomentumCard
 import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.nhlstenden.momentum.util.MomentumDateFormat
 
 @Composable
 fun ReflectScreen(
@@ -114,7 +112,7 @@ private fun ReflectionHistoryCard(entry: JournalEntry, questTitle: String) {
 }
 
 private fun Long.toHistoryDate(): String =
-    SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(this))
+    MomentumDateFormat.formatHistory(this)
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B1326, widthDp = 360, heightDp = 720)
 @Composable

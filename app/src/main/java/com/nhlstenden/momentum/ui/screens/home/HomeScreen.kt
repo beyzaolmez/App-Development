@@ -23,11 +23,9 @@ import com.nhlstenden.momentum.ui.components.MomentumChip
 import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.QuestCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
+import com.nhlstenden.momentum.util.MomentumDateFormat
 import com.nhlstenden.momentum.viewmodel.QuestDataMode
 import com.nhlstenden.momentum.viewmodel.QuestViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -88,9 +86,19 @@ fun HomeScreen(
                 title = quest.title,
                 description = quest.description,
                 category = quest.category.label,
-                difficulty = "${quest.difficulty.label} · ${quest.estimatedMinutes} min",
+                difficulty = if (quest.isLongTerm) {
+                    "${quest.difficulty.label} · ${quest.targetProgress} ${quest.progressUnit}"
+                } else {
+                    "${quest.difficulty.label} · ${quest.estimatedMinutes} min"
+                },
                 status = quest.status.label,
                 statusVariant = quest.status.chipVariant(),
+                progressLabel = if (quest.isLongTerm) {
+                    "${quest.currentProgress}/${quest.targetProgress} ${quest.progressUnit}"
+                } else {
+                    null
+                },
+                progressFraction = if (quest.isLongTerm) quest.progressFraction else null,
                 actionLabel = if (quest.status == QuestStatus.Available) "Start quest" else null,
                 onActionClick = { onStartQuest(quest.id) },
                 secondaryActionLabel = if (quest.status == QuestStatus.Available) "Not today" else null,
@@ -174,4 +182,4 @@ private fun HomeScreenPreview() {
 }
 
 private fun currentWeekday(): String =
-    SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+    MomentumDateFormat.formatWeekday()

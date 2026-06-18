@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,6 +76,8 @@ fun QuestCard(
     difficulty: String? = null,
     status: String? = null,
     statusVariant: ChipVariant = ChipVariant.Status,
+    progressLabel: String? = null,
+    progressFraction: Float? = null,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
     secondaryActionLabel: String? = null,
@@ -106,6 +110,23 @@ fun QuestCard(
             ) {
                 if (status != null) {
                     MomentumChip(status, variant = statusVariant)
+                }
+            }
+            if (progressLabel != null && progressFraction != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        progressLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    LinearProgressIndicator(
+                        progress = progressFraction.coerceIn(0f, 1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 }
             }
             if (actionLabel != null && onActionClick != null) {

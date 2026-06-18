@@ -16,6 +16,7 @@ interface UserRepository {
     suspend fun updateInterests(uid: String, interests: List<String>)
     suspend fun updateNotificationPreference(uid: String, enabled: Boolean)
     suspend fun updateProgress(uid: String, progress: UserProgress)
+    suspend fun updateThemePreference(uid: String, themePreference: String)
 
     /**
      * Deletes the user document and all subcollections from Firestore.
@@ -59,6 +60,10 @@ class InMemoryUserRepository : UserRepository {
 
     override suspend fun updateProgress(uid: String, progress: UserProgress) {
         users[uid] = users[uid]?.copy(progress = progress) ?: return
+    }
+
+    override suspend fun updateThemePreference(uid: String, themePreference: String) {
+        users[uid] = users[uid]?.copy(themePreference = themePreference) ?: return
     }
 
     override suspend fun deleteUser(uid: String) {
@@ -152,6 +157,13 @@ class FirestoreUserRepository(
             .await()
     }
 
+    override suspend fun updateThemePreference(uid: String, themePreference: String) {
+        firestore.collection("users")
+            .document(uid)
+            .update("themePreference", themePreference)
+            .await()
+    }
+
     override suspend fun deleteUser(uid: String) {
         val batch = firestore.batch()
         val userDoc = firestore.collection("users").document(uid)
@@ -180,7 +192,8 @@ private fun User.toFirestoreMap(): Map<String, Any?> = mapOf(
     "interests" to interests,
     "notificationEnabled" to notificationEnabled,
     "progress" to progress.toFirestoreMap(),
-    "onboardingCompleted" to onboardingCompleted
+    "onboardingCompleted" to onboardingCompleted,
+    "themePreference" to themePreference
 )
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toUser(uid: String): User? {
@@ -194,7 +207,8 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toUser(uid: String): 
         interests = get("interests").toStringList(),
         notificationEnabled = getBoolean("notificationEnabled") ?: false,
         progress = progressMap.toUserProgress(),
-        onboardingCompleted = getBoolean("onboardingCompleted") ?: false
+        onboardingCompleted = getBoolean("onboardingCompleted") ?: false,
+        themePreference = getString("themePreference")
     )
 }
 

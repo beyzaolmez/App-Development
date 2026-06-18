@@ -35,7 +35,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get, list: if signedIn();
+      allow get: if signedIn();
 
       allow create: if isSelf(userId)
         && request.resource.data.uid == userId;

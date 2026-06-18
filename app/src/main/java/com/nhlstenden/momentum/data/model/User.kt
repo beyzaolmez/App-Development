@@ -7,7 +7,8 @@ data class User(
     val interests: List<String> = emptyList(),
     val notificationEnabled: Boolean = false,
     val progress: UserProgress = UserProgress(),
-    val onboardingCompleted: Boolean = false
+    val onboardingCompleted: Boolean = false,
+    val themePreference: String? = null
 )
 
 data class UserProgress(
