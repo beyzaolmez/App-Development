@@ -26,6 +26,8 @@ object NotificationHelper {
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Notifications for daily side quests"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 100, 250)
             }
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -50,6 +52,7 @@ object NotificationHelper {
             .setContentTitle("New quest available")
             .setContentText(questTitle)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVibrate(longArrayOf(0, 250, 100, 250))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
