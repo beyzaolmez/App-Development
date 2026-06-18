@@ -159,7 +159,11 @@ private fun LongTermQuestActions(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canUpdateProgress
             )
-            MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+            if (canUpdateProgress) {
+                MomentumQuietButton("Not today", onSkip, Modifier.fillMaxWidth())
+            } else {
+                MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())
+            }
         }
         QuestStatus.Completed -> {
             MomentumSecondaryButton("Return home", onBack, Modifier.fillMaxWidth())

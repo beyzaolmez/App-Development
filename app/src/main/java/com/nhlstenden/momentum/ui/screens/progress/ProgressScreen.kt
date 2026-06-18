@@ -148,7 +148,7 @@ private fun ActivityStatsCard(overview: ProgressOverview) {
             } else {
                 overview.categoryStats.forEach { stat ->
                     ProgressRow(
-                        label = "${stat.category.label}: ${stat.completedCount} completed",
+                        label = "${stat.category.label}: ${stat.completedCount} ${stat.completedCount.activityLabel()}",
                         fraction = stat.fraction,
                         color = stat.category.progressColor()
                     )
@@ -177,6 +177,8 @@ private fun ProgressRow(label: String, fraction: Float, color: Color) {
         }
     }
 }
+
+private fun Int.activityLabel(): String = if (this == 1) "activity" else "activities"
 
 @Composable
 private fun QuestCategory.progressColor(): Color = when (this) {

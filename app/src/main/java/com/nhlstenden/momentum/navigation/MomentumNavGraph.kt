@@ -89,7 +89,10 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                 WelcomeScreen(
                     onSignIn = { navController.navigate(Routes.SignIn) },
                     onSignUp = { navController.navigate(Routes.SignUp) },
-                    onContinueWithoutAccount = navigateHome
+                    onContinueWithoutAccount = {
+                        FirebaseAuth.getInstance().signOut()
+                        navigateHome()
+                    }
                 )
             }
             composable(Routes.SignIn) {

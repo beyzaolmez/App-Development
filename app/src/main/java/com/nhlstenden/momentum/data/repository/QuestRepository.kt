@@ -344,6 +344,68 @@ class PredefinedQuestRepository : QuestRepository {
             )
         ),
         Quest(
+            id = "bodyweight-circuit",
+            title = "15-minute bodyweight circuit",
+            description = "Do a simple no-equipment workout that fits between study blocks.",
+            category = QuestCategory.Movement,
+            xp = 140,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 15,
+            steps = listOf(
+                "Warm up with 2 minutes of easy movement.",
+                "Complete three rounds of squats, push-ups, lunges, and plank holds.",
+                "Rest when you need to and finish with a short stretch."
+            ),
+            journalPrompt = "How did your energy feel after the circuit?"
+        ),
+        Quest(
+            id = "cardio-intervals",
+            title = "20-minute cardio intervals",
+            description = "Raise your heart rate with short bursts of effort and recovery.",
+            category = QuestCategory.Movement,
+            xp = 160,
+            difficulty = QuestDifficulty.Medium,
+            estimatedMinutes = 20,
+            steps = listOf(
+                "Choose running, cycling, rowing, stairs, or another cardio option.",
+                "Alternate 1 minute of higher effort with 1 minute of easy recovery.",
+                "Cool down for 3 minutes and drink some water."
+            ),
+            journalPrompt = "What helped you keep going during the hard intervals?"
+        ),
+        Quest(
+            id = "core-reset",
+            title = "10-minute core workout",
+            description = "Build a quick core session around steady, controlled movement.",
+            category = QuestCategory.Movement,
+            xp = 90,
+            difficulty = QuestDifficulty.Easy,
+            estimatedMinutes = 10,
+            steps = listOf(
+                "Choose three core moves such as plank, dead bug, or mountain climbers.",
+                "Work for 30 seconds and rest for 30 seconds.",
+                "Repeat until you have completed 10 minutes."
+            )
+        ),
+        Quest(
+            id = "workout-streak",
+            title = "Complete 4 workouts",
+            description = "Build a short workout streak across the week.",
+            category = QuestCategory.Movement,
+            xp = 360,
+            difficulty = QuestDifficulty.Hard,
+            estimatedMinutes = 20,
+            steps = listOf(
+                "Choose a workout style that suits your week.",
+                "Complete four separate workout sessions.",
+                "Log one workout as progress after each session."
+            ),
+            journalPrompt = "What made it easier to keep returning to your workouts?",
+            goalType = QuestGoalType.LongTerm,
+            targetProgress = 4,
+            progressUnit = "workouts"
+        ),
+        Quest(
             id = "movement-month",
             title = "Move for 10 days",
             description = "Work toward a larger movement goal one day at a time.",
