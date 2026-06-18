@@ -174,6 +174,17 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
             }
             composable(Routes.Profile) {
                 val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+                // Navigate to Welcome when account deletion succeeds
+                if (profileViewModel.deleteSuccess) {
+                    LaunchedEffect(Unit) {
+                        profileViewModel.resetDeleteState()
+                        navController.navigate(Routes.Welcome) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
+                }
+
                 ProfileScreen(
                     displayName = profileViewModel.displayName
                         .ifBlank {
@@ -200,7 +211,10 @@ fun MomentumApp(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Routes.Welcome) {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
-                    }
+                    },
+                    isDeletingAccount = profileViewModel.isDeleting,
+                    deleteAccountError = profileViewModel.deleteError,
+                    onDeleteAccount = { profileViewModel.deleteAccount() }
                 )
             }
 

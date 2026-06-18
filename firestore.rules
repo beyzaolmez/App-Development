@@ -43,7 +43,7 @@ service cloud.firestore {
       allow update: if isSelf(userId)
         && request.resource.data.uid == resource.data.uid;
 
-      allow delete: if false;
+      allow delete: if isSelf(userId);
 
       match /questStates/{questStateId} {
         allow get, list, create, update, delete: if isSelf(userId);

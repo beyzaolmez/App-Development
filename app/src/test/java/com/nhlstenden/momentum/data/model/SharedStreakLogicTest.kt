@@ -72,4 +72,16 @@ class SharedStreakLogicTest {
         assertEquals(pending, updated)
         assertEquals(pending, evaluated)
     }
+
+    @Test
+    fun recordCompletionCanCountExistingSameDayCompletionsOnActivation() {
+        val activated = activeStreak.copy(
+            lastCompletionDates = mapOf("alice" to "2026-06-17", "bob" to "2026-06-17")
+        )
+
+        val updated = SharedStreakLogic.recordCompletion(activated, "alice", "2026-06-17")
+
+        assertEquals(1, updated.currentStreak)
+        assertEquals("2026-06-17", updated.lastIncrementDate)
+    }
 }
