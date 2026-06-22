@@ -9,16 +9,19 @@ import com.nhlstenden.momentum.data.model.QuestStatus
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
-interface QuestRepository {
+/** Read-only source of the quest catalogue (the quest definitions themselves). */
+interface QuestCatalog {
     fun getQuests(): List<Quest>
     fun getQuestById(id: String): Quest?
+}
+
+/** Per-user quest progress/state storage. */
+interface QuestRepository {
     suspend fun getQuestStates(uid: String): List<QuestState>
     suspend fun saveQuestState(uid: String, questState: QuestState)
 }
 
-class PredefinedQuestRepository : QuestRepository {
-    private val questStatesByUser = mutableMapOf<String, List<QuestState>>()
-
+class PredefinedQuestRepository : QuestCatalog {
     private val quests = listOf(
         // ── Academic ──────────────────────────────────────────────────────────
         Quest(
@@ -427,28 +430,11 @@ class PredefinedQuestRepository : QuestRepository {
     override fun getQuests(): List<Quest> = quests
 
     override fun getQuestById(id: String): Quest? = quests.firstOrNull { it.id == id }
-
-    override suspend fun getQuestStates(uid: String): List<QuestState> =
-        questStatesByUser[uid].orEmpty()
-
-    override suspend fun saveQuestState(uid: String, questState: QuestState) {
-        val existingStates = questStatesByUser[uid].orEmpty()
-        val existingState = existingStates.firstOrNull { it.questStateId == questState.questStateId }
-        if (existingState != null && existingState.isMoreFinalThan(questState)) return
-
-        questStatesByUser[uid] = existingStates
-            .filterNot { it.questStateId == questState.questStateId }
-            .plus(questState)
-    }
 }
 
 class FirestoreQuestRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) : QuestRepository {
-    override fun getQuests(): List<Quest> = emptyList()
-
-    override fun getQuestById(id: String): Quest? = null
-
     suspend fun seedQuests(quests: List<Quest>) {
         val batch = firestore.batch()
         quests.forEach { quest ->
@@ -600,15 +586,3 @@ private fun String?.toQuestGoalType(): QuestGoalType =
 private fun String?.toQuestStatus(): QuestStatus =
     enumValues<QuestStatus>().firstOrNull { it.name.equals(this, ignoreCase = true) }
         ?: QuestStatus.Available
-
-private fun QuestState.isMoreFinalThan(other: QuestState): Boolean =
-    status.persistenceRank > other.status.persistenceRank ||
-        (status.persistenceRank == other.status.persistenceRank && currentProgress > other.currentProgress)
-
-private val QuestStatus.persistenceRank: Int
-    get() = when (this) {
-        QuestStatus.Available -> 0
-        QuestStatus.Active -> 1
-        QuestStatus.Skipped -> 2
-        QuestStatus.Completed -> 3
-    }

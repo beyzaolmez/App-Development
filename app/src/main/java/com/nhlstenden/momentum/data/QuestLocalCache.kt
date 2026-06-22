@@ -4,6 +4,7 @@ import android.content.Context
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
 import com.nhlstenden.momentum.data.model.UserProgress
+import com.nhlstenden.momentum.data.model.persistenceRank
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -114,14 +115,6 @@ class QuestLocalCache(context: Context) {
     private fun String?.toQuestStatus(): QuestStatus =
         enumValues<QuestStatus>().firstOrNull { it.name.equals(this, ignoreCase = true) }
             ?: QuestStatus.Available
-
-    private val QuestStatus.persistenceRank: Int
-        get() = when (this) {
-            QuestStatus.Available -> 0
-            QuestStatus.Active -> 1
-            QuestStatus.Skipped -> 2
-            QuestStatus.Completed -> 3
-        }
 
     private companion object {
         const val PREFS_NAME = "momentum_quest_cache"

@@ -65,10 +65,7 @@ class MainActivity : ComponentActivity() {
                     selectedTheme = selectedTheme,
                     onThemeSelected = { theme ->
                         selectedTheme = theme
-                        val uid = firebaseAuth.currentUser?.uid
-                        if (uid == null) {
-                            selectedTheme = theme
-                        } else {
+                        firebaseAuth.currentUser?.uid?.let { uid ->
                             scope.launch {
                                 runCatching {
                                     userRepository.updateThemePreference(uid, theme.storageValue)

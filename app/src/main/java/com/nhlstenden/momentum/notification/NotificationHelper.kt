@@ -1,5 +1,6 @@
 package com.nhlstenden.momentum.notification
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -30,10 +31,11 @@ object NotificationHelper {
                 vibrationPattern = longArrayOf(0, 250, 100, 250)
             }
             val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager?.createNotificationChannel(channel)
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun showQuestNotification(context: Context, questTitle: String) {
         if (!hasNotificationPermission(context)) return
 

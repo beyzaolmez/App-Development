@@ -2,6 +2,7 @@ package com.nhlstenden.momentum.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import com.nhlstenden.momentum.data.model.User
 import com.nhlstenden.momentum.data.model.UserProgress
 import kotlinx.coroutines.tasks.await
@@ -19,6 +20,17 @@ interface UserRepository {
     suspend fun updateThemePreference(uid: String, themePreference: String)
 
     /**
+     * Atomically reads the user's current [UserProgress], applies [transform], and
+     * persists the result, returning the value that was written. Implementations
+     * must guarantee the read-modify-write is not subject to lost updates when
+     * called concurrently (e.g. completing two quests in quick succession).
+     */
+    suspend fun applyProgressUpdate(
+        uid: String,
+        transform: (UserProgress) -> UserProgress
+    ): UserProgress
+
+    /**
      * Deletes the user document and all subcollections from Firestore.
      * This should be called before deleting the Firebase Auth account.
      */
@@ -26,9 +38,10 @@ interface UserRepository {
 }
 
 class InMemoryUserRepository : UserRepository {
+    private val lock = Any()
     private val users = mutableMapOf<String, User>()
 
-    override suspend fun getUser(uid: String): User? = users[uid]
+    override suspend fun getUser(uid: String): User? = synchronized(lock) { users[uid] }
 
     override suspend fun findByEmail(email: String): User? =
         users.values.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
@@ -60,6 +73,17 @@ class InMemoryUserRepository : UserRepository {
 
     override suspend fun updateProgress(uid: String, progress: UserProgress) {
         users[uid] = users[uid]?.copy(progress = progress) ?: return
+    }
+
+    override suspend fun applyProgressUpdate(
+        uid: String,
+        transform: (UserProgress) -> UserProgress
+    ): UserProgress = synchronized(lock) {
+        val current = users[uid]?.progress ?: UserProgress()
+        val updated = transform(current)
+        users[uid] = users[uid]?.copy(progress = updated)
+            ?: User(uid = uid, displayName = "", email = "", progress = updated)
+        updated
     }
 
     override suspend fun updateThemePreference(uid: String, themePreference: String) {
@@ -98,11 +122,6 @@ class FirestoreUserRepository(
                 .await()
                 .documents
                 .firstOrNull()
-            ?: firestore.collection("users")
-                .get()
-                .await()
-                .documents
-                .firstOrNull { it.getString("email").orEmpty().equals(normalized, ignoreCase = true) }
             ?: return null
         return document.toUser(document.id)
     }
@@ -164,23 +183,45 @@ class FirestoreUserRepository(
             .await()
     }
 
+    override suspend fun applyProgressUpdate(
+        uid: String,
+        transform: (UserProgress) -> UserProgress
+    ): UserProgress {
+        val reference = firestore.collection("users").document(uid)
+        return firestore.runTransaction { transaction ->
+            val current = (transaction.get(reference).get("progress") as? Map<*, *>).toUserProgress()
+            val updated = transform(current)
+            transaction.set(reference, mapOf("progress" to updated.toFirestoreMap()), SetOptions.merge())
+            updated
+        }.await()
+    }
+
     override suspend fun deleteUser(uid: String) {
-        val batch = firestore.batch()
         val userDoc = firestore.collection("users").document(uid)
 
-        // Delete subcollections first
+        // Collect every subcollection document, then the user document itself.
         val subcollections = listOf("questStates", "questFeedback", "journalEntries")
-        subcollections.forEach { subcollection ->
-            val snapshot = userDoc.collection(subcollection).get().await()
-            snapshot.documents.forEach { doc ->
-                batch.delete(doc.reference)
+        val references = buildList {
+            subcollections.forEach { subcollection ->
+                userDoc.collection(subcollection).get().await().documents
+                    .forEach { add(it.reference) }
             }
+            add(userDoc)
         }
 
-        // Delete the user document itself
-        batch.delete(userDoc)
+        // Commit in chunks so a user with many states/entries cannot exceed
+        // Firestore's 500-operations-per-batch limit. All deletes are idempotent,
+        // so a retry after a transient failure is safe.
+        references.chunked(BATCH_LIMIT).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { batch.delete(it) }
+            batch.commit().await()
+        }
+    }
 
-        batch.commit().await()
+    private companion object {
+        // Firestore allows at most 500 writes per batch; stay safely under it.
+        const val BATCH_LIMIT = 450
     }
 }
 

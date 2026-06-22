@@ -1,6 +1,7 @@
 package com.nhlstenden.momentum.viewmodel
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,6 +20,7 @@ import com.nhlstenden.momentum.data.model.ProgressOverview
 import com.nhlstenden.momentum.data.model.ProgressOverviewCalculator
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
+import com.nhlstenden.momentum.data.model.persistenceRank
 import com.nhlstenden.momentum.data.model.User
 import com.nhlstenden.momentum.data.model.UserProgress
 import com.nhlstenden.momentum.data.repository.FirestoreReflectionRepository
@@ -27,7 +29,7 @@ import com.nhlstenden.momentum.data.repository.FirestoreQuestRepository
 import com.nhlstenden.momentum.data.repository.FirestoreUserRepository
 import com.nhlstenden.momentum.data.repository.InMemoryReflectionRepository
 import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
-import com.nhlstenden.momentum.data.repository.QuestRepository
+import com.nhlstenden.momentum.data.repository.QuestCatalog
 import com.nhlstenden.momentum.data.repository.ReflectionRepository
 import com.nhlstenden.momentum.data.repository.FirestoreSharedStreakRepository
 import com.nhlstenden.momentum.data.repository.SharedStreakRepository
@@ -38,6 +40,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -47,7 +50,7 @@ class QuestViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val firestoreQuestRepository: FirestoreQuestRepository = FirestoreQuestRepository(),
     private val feedbackRepository: FirestoreQuestFeedbackRepository = FirestoreQuestFeedbackRepository(),
-    private val fallbackQuestRepository: QuestRepository = PredefinedQuestRepository(),
+    private val fallbackQuestRepository: QuestCatalog = PredefinedQuestRepository(),
     private val userRepository: UserRepository = FirestoreUserRepository(),
     private val reflectionRepository: ReflectionRepository = FirestoreReflectionRepository(),
     private val demoReflectionRepository: ReflectionRepository = InMemoryReflectionRepository(),
@@ -55,7 +58,7 @@ class QuestViewModel(
 ) : ViewModel() {
     private val dailyQuestLimit = 3
     private val today: String
-        get() = dateFormat.get()!!.format(Date())
+        get() = utcDateFormat().format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
 
     private var localCache: QuestLocalCache? = null
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
@@ -98,36 +101,16 @@ class QuestViewModel(
         loadQuests()
     }
 
-    fun visibleQuests(selectedInterests: Set<String> = emptySet()): List<Quest> {
-        val filteredQuests = selectedStatus?.let { status ->
-            quests.filter { it.status == status }
-        } ?: quests
-
-        val interestFilteredQuests = if (selectedInterests.isEmpty()) {
-            filteredQuests
-        } else {
-            filteredQuests.filter { it.category.label in selectedInterests }
-        }.ifEmpty { filteredQuests }
-
-        val visibleCandidates = if (selectedInterests.isNotEmpty() && selectedStatus == null) {
-            interestFilteredQuests
-                .filter { it.isLongTerm }
-                .plus(
-                    interestFilteredQuests
-                        .filterNot { it.isLongTerm }
-                        .takeBalancedDailyQuests(selectedInterests)
-                )
-        } else {
-            interestFilteredQuests.dailyLimited()
-        }
-
-        return visibleCandidates.sortedWith(
-            compareByDescending<Quest> { it.recommendationScore() }
-                .thenBy { it.status.sortOrder }
-                .thenBy { it.category.label }
-                .thenBy { it.title }
+    fun visibleQuests(selectedInterests: Set<String> = emptySet()): List<Quest> =
+        DailyQuestSelector.visibleQuests(
+            quests = quests,
+            selectedStatus = selectedStatus,
+            selectedInterests = selectedInterests,
+            dailyQuestLimit = dailyQuestLimit,
+            dailyQuestIds = dailyQuestIds,
+            feedbackByQuestId = feedbackByQuestId,
+            feedbackScoreByCategory = feedbackScoreByCategory
         )
-    }
 
     fun activeQuestCount(): Int = quests.count { it.status == QuestStatus.Active }
 
@@ -328,7 +311,7 @@ class QuestViewModel(
                     withTimeout(FIRESTORE_TIMEOUT_MS) {
                         sharedStreakRepository.recordQuestLike(uid, id)
                     }
-                }
+                }.onFailure { Log.w(TAG, "saveFeedback: failed to mirror like to shared streaks", it) }
             }
         }
     }
@@ -341,7 +324,7 @@ class QuestViewModel(
                 withTimeout(FIRESTORE_TIMEOUT_MS) {
                     sharedStreakRepository.recordQuestLike(uid, id)
                 }
-            }
+            }.onFailure { Log.w(TAG, "publishSharedQuestLike: failed to mirror like", it) }
         }
     }
 
@@ -433,6 +416,10 @@ class QuestViewModel(
                     )
                 }
 
+                loadedQuests to loadedData
+            }.onSuccess { (loadedQuests, loadedData) ->
+                // State commit lives in onSuccess so a failure here can never fall
+                // through to the demo fallback and clobber the user's real data.
                 feedbackByQuestId = loadedData.feedback.associate { it.questId to it.feedbackType }
                 feedbackScoreByCategory = loadedData.feedback.toCategoryScores()
                 recentReflections = loadedData.reflections
@@ -531,7 +518,12 @@ class QuestViewModel(
                         reflectionRepository.saveReflection(uid, entry)
                     }
                 }.onFailure {
-                    errorMessage = "Quest completed. Your reflection is saved and will sync once you're back online."
+                    // Roll back the optimistic markers so the user can retry the
+                    // reflection instead of being permanently blocked by the
+                    // duplicate guard with no entry actually persisted.
+                    reflectedQuestIds = reflectedQuestIds - id
+                    recentReflections = recentReflections.filterNot { it.questId == id }
+                    errorMessage = "Quest completed, but we couldn't save your reflection. Please try again."
                 }
             }
             completeQuest(id)
@@ -557,49 +549,37 @@ class QuestViewModel(
         quest: Quest,
         countCompletedQuest: Boolean = true
     ) {
-        val user = runCatching {
-            withTimeout(FIRESTORE_TIMEOUT_MS) {
-                userRepository.getUser(uid)
-            }
-        }.getOrNull()
-        val currentProgress = user?.progress ?: userProgress
-        val newStreak = when (currentProgress.lastQuestCompletionDate) {
-            today -> currentProgress.currentStreak
-            yesterday() -> currentProgress.currentStreak + 1
-            else -> 1
-        }
-        val categoryCounts = currentProgress.categoryCounts.toMutableMap()
         val categoryKey = quest.category.name
-        categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
 
-        val updatedProgress = UserProgress(
-            currentStreak = newStreak,
-            completedQuestCount = currentProgress.completedQuestCount + if (countCompletedQuest) 1 else 0,
-            skippedQuestCount = currentProgress.skippedQuestCount,
-            categoryCounts = categoryCounts,
-            lastQuestCompletionDate = today
-        )
+        fun applyCompletion(current: UserProgress): UserProgress {
+            val newStreak = when (current.lastQuestCompletionDate) {
+                today -> current.currentStreak
+                yesterday() -> current.currentStreak + 1
+                else -> 1
+            }
+            val categoryCounts = current.categoryCounts.toMutableMap()
+            categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
+            return current.copy(
+                currentStreak = newStreak,
+                completedQuestCount = current.completedQuestCount + if (countCompletedQuest) 1 else 0,
+                categoryCounts = categoryCounts,
+                lastQuestCompletionDate = today
+            )
+        }
+
+        // Atomic read-modify-write so two quests completed in quick succession can't
+        // clobber each other's increment. Falls back to a local-only update when offline.
+        val updatedProgress = runCatching {
+            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                ensureUserDocumentExists(uid)
+                userRepository.applyProgressUpdate(uid, ::applyCompletion)
+            }
+        }.getOrElse {
+            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
+            applyCompletion(userProgress)
+        }
         userProgress = updatedProgress
         localCache?.saveUserProgress(uid, updatedProgress)
-        runCatching {
-            withTimeout(FIRESTORE_TIMEOUT_MS) {
-                if (user == null) {
-                    val firebaseUser = auth.currentUser
-                    userRepository.saveUser(
-                        User(
-                            uid = uid,
-                            displayName = firebaseUser?.displayName.orEmpty(),
-                            email = firebaseUser?.email.orEmpty(),
-                            progress = updatedProgress
-                        )
-                    )
-                } else {
-                    userRepository.updateProgress(uid = uid, progress = updatedProgress)
-                }
-            }
-        }.onFailure {
-            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
-        }
 
         // Record today's completion on every shared streak this user is part of, so a
         // connected friend's shared streak advances once both of them finish today.
@@ -607,40 +587,36 @@ class QuestViewModel(
             withTimeout(FIRESTORE_TIMEOUT_MS) {
                 sharedStreakRepository.recordCompletion(uid, today)
             }
-        }
+        }.onFailure { Log.w(TAG, "updateUserProgress: shared streak sync failed", it) }
     }
 
     private suspend fun updateSkippedProgress(uid: String) {
-        val user = runCatching {
+        fun applySkip(current: UserProgress): UserProgress =
+            current.copy(skippedQuestCount = current.skippedQuestCount + 1)
+
+        val updatedProgress = runCatching {
             withTimeout(FIRESTORE_TIMEOUT_MS) {
-                userRepository.getUser(uid)
+                ensureUserDocumentExists(uid)
+                userRepository.applyProgressUpdate(uid, ::applySkip)
             }
-        }.getOrNull()
-        val currentProgress = user?.progress ?: userProgress
-        val updatedProgress = currentProgress.copy(
-            skippedQuestCount = currentProgress.skippedQuestCount + 1
-        )
+        }.getOrElse {
+            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
+            applySkip(userProgress)
+        }
         userProgress = updatedProgress
         localCache?.saveUserProgress(uid, updatedProgress)
-        runCatching {
-            withTimeout(FIRESTORE_TIMEOUT_MS) {
-                if (user == null) {
-                    val firebaseUser = auth.currentUser
-                    userRepository.saveUser(
-                        User(
-                            uid = uid,
-                            displayName = firebaseUser?.displayName.orEmpty(),
-                            email = firebaseUser?.email.orEmpty(),
-                            progress = updatedProgress
-                        )
-                    )
-                } else {
-                    userRepository.updateProgress(uid = uid, progress = updatedProgress)
-                }
-            }
-        }.onFailure {
-            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
-        }
+    }
+
+    private suspend fun ensureUserDocumentExists(uid: String) {
+        if (userRepository.getUser(uid) != null) return
+        val firebaseUser = auth.currentUser
+        userRepository.saveUser(
+            User(
+                uid = uid,
+                displayName = firebaseUser?.displayName.orEmpty(),
+                email = firebaseUser?.email.orEmpty()
+            )
+        )
     }
 
     private fun List<Quest>.withStates(states: List<QuestState>): List<Quest> {
@@ -687,60 +663,13 @@ class QuestViewModel(
         )
     }
 
-    private fun List<Quest>.dailyLimited(): List<Quest> {
-        if (selectedStatus != null && selectedStatus != QuestStatus.Available) return this
-
-        return filter { quest ->
-            quest.isLongTerm || quest.status != QuestStatus.Available || quest.id in dailyQuestIds
-        }
-    }
-
-    private fun List<Quest>.takeBalancedDailyQuests(selectedInterests: Set<String>): List<Quest> {
-        val prioritized = prioritizedByFeedback()
-        if (selectedInterests.isEmpty()) return prioritized.take(dailyQuestLimit)
-
-        val byInterest = selectedInterests
-            .mapNotNull { interest ->
-                val questsForInterest = prioritized.filter { it.category.label == interest }
-                if (questsForInterest.isEmpty()) null else interest to questsForInterest
-            }
-            .toMap()
-
-        val balanced = mutableListOf<Quest>()
-        var index = 0
-        while (balanced.size < dailyQuestLimit) {
-            val nextRound = selectedInterests.mapNotNull { interest ->
-                byInterest[interest]?.getOrNull(index)
-            }
-            if (nextRound.isEmpty()) break
-            balanced += nextRound.filterNot { quest -> balanced.any { it.id == quest.id } }
-            index += 1
-        }
-
-        return balanced
-            .take(dailyQuestLimit)
-            .ifEmpty { prioritized.take(dailyQuestLimit) }
-    }
-
-    private fun List<Quest>.prioritizedByFeedback(): List<Quest> =
-        sortedWith(
-            compareByDescending<Quest> { it.recommendationScore() }
-                .thenBy { it.status.sortOrder }
-                .thenBy { it.category.label }
-                .thenBy { it.title }
-        )
-
-    private fun Quest.recommendationScore(): Int =
-        ((feedbackByQuestId[id]?.preferenceScore ?: 0) * DIRECT_FEEDBACK_WEIGHT) +
-            (feedbackScoreByCategory[category] ?: 0)
-
     private fun refreshDailyAssignments(sourceQuests: List<Quest> = quests) {
-        dailyQuestIds = sourceQuests
-            .filterNot { it.isLongTerm }
-            .prioritizedByFeedback()
-            .take(dailyQuestLimit)
-            .map { it.id }
-            .toSet()
+        dailyQuestIds = DailyQuestSelector.dailyQuestIds(
+            quests = sourceQuests,
+            dailyQuestLimit = dailyQuestLimit,
+            feedbackByQuestId = feedbackByQuestId,
+            feedbackScoreByCategory = feedbackScoreByCategory
+        )
     }
 
     private fun updateDemoActivityProgress(
@@ -760,7 +689,7 @@ class QuestViewModel(
 
     private fun Quest.wasProgressUpdatedToday(now: Long = System.currentTimeMillis()): Boolean {
         val updatedAt = lastProgressUpdatedAt ?: return false
-        return dateFormat.get()!!.format(Date(updatedAt)) == dateFormat.get()!!.format(Date(now))
+        return utcDateFormat().format(Date(updatedAt)) == utcDateFormat().format(Date(now))
     }
 }
 
@@ -776,28 +705,29 @@ enum class QuestDataMode {
     Demo
 }
 
+private const val TAG = "QuestViewModel"
 private const val FIRESTORE_TIMEOUT_MS = 8_000L
-private const val DIRECT_FEEDBACK_WEIGHT = 100
 private const val DEMO_REFLECTION_UID = "demo-reflections"
 private const val DEFAULT_REFLECTION_PROMPT = "What did you notice, learn, or want to do differently next time?"
 
+// UTC so that personal-streak dates line up with SharedStreakLogic (also UTC),
+// preventing streaks from breaking or double-counting around midnight / across timezones.
 private val dateFormat = ThreadLocal.withInitial {
-    SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
 }
+
+// Single place that resolves the thread-local formatter, so the non-null handling
+// lives here instead of being repeated as `!!` at every call site.
+private fun utcDateFormat(): SimpleDateFormat =
+    dateFormat.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
 
 private fun yesterday(): String {
-    val calendar = Calendar.getInstance()
+    val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
     calendar.add(Calendar.DAY_OF_YEAR, -1)
-    return dateFormat.get()!!.format(calendar.time)
+    return utcDateFormat().format(calendar.time)
 }
-
-private val QuestStatus.sortOrder: Int
-    get() = when (this) {
-        QuestStatus.Active -> 0
-        QuestStatus.Available -> 1
-        QuestStatus.Completed -> 2
-        QuestStatus.Skipped -> 3
-    }
 
 private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<QuestState>): List<QuestState> =
     (remoteStates + cachedStates)
@@ -806,7 +736,7 @@ private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<
 
 private fun List<QuestState>.filterForCurrentQuests(quests: List<Quest>): List<QuestState> {
     val longTermQuestIds = quests.filter { it.isLongTerm }.map { it.id }.toSet()
-    return filter { state -> state.date == dateFormat.get()!!.format(Date()) || state.questId in longTermQuestIds }
+    return filter { state -> state.date == utcDateFormat().format(Date()) || state.questId in longTermQuestIds }
 }
 
 private fun preferredProgress(
@@ -815,17 +745,12 @@ private fun preferredProgress(
 ): UserProgress =
     listOfNotNull(remoteProgress, cachedProgress, UserProgress())
         .maxWith(
-            compareBy<UserProgress> { it.completedQuestCount }
+            // "yyyy-MM-dd" sorts lexicographically, so the most recent completion wins first;
+            // counts only break ties when both sources were last active on the same day.
+            compareBy<UserProgress> { it.lastQuestCompletionDate ?: "" }
+                .thenBy { it.completedQuestCount }
                 .thenBy { it.currentStreak }
         )
-
-private val QuestStatus.persistenceRank: Int
-    get() = when (this) {
-        QuestStatus.Available -> 0
-        QuestStatus.Active -> 1
-        QuestStatus.Skipped -> 2
-        QuestStatus.Completed -> 3
-    }
 
 private fun List<QuestFeedback>.toCategoryScores(): Map<QuestCategory, Int> =
     groupBy { it.category }
@@ -847,14 +772,6 @@ private fun Map<QuestCategory, Int>.updatedWith(
         this + (category to updatedScore)
     }
 }
-
-private val QuestFeedbackType.preferenceScore: Int
-    get() = when (this) {
-        QuestFeedbackType.Like -> 2
-        QuestFeedbackType.MoreLikeThis -> 1
-        QuestFeedbackType.NotForMe -> -1
-        QuestFeedbackType.Dislike -> -2
-    }
 
 private fun Quest.reflectionPrompt(): String = journalPrompt ?: when (category) {
     QuestCategory.Academic -> "What helped your learning, and what could you improve next time?"

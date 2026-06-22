@@ -14,3 +14,16 @@ data class QuestState(
     val progressUnit: String = "completion",
     val lastProgressUpdatedAt: Long? = null
 )
+
+/**
+ * How "final" a status is when merging two versions of the same quest state
+ * (e.g. remote vs. cached). A higher rank wins so a Completed state is never
+ * overwritten by a stale Available one. Single source of truth for all merge logic.
+ */
+val QuestStatus.persistenceRank: Int
+    get() = when (this) {
+        QuestStatus.Available -> 0
+        QuestStatus.Active -> 1
+        QuestStatus.Skipped -> 2
+        QuestStatus.Completed -> 3
+    }

@@ -24,7 +24,6 @@ import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.QuestCard
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 import com.nhlstenden.momentum.util.MomentumDateFormat
-import com.nhlstenden.momentum.viewmodel.QuestDataMode
 import com.nhlstenden.momentum.viewmodel.QuestViewModel
 
 @Composable
@@ -32,7 +31,6 @@ fun HomeScreen(
     quests: List<Quest>,
     isLoading: Boolean,
     greetingName: String,
-    dataMode: QuestDataMode,
     errorMessage: String?,
     selectedStatus: QuestStatus?,
     activeQuestCount: Int,
@@ -168,7 +166,6 @@ private fun HomeScreenPreview() {
             quests = questViewModel.visibleQuests(),
             isLoading = questViewModel.isLoading,
             greetingName = "Testing user",
-            dataMode = questViewModel.dataMode,
             errorMessage = questViewModel.errorMessage,
             selectedStatus = questViewModel.selectedStatus,
             activeQuestCount = questViewModel.activeQuestCount(),

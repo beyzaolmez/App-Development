@@ -27,6 +27,16 @@ service cloud.firestore {
         && request.resource.data.memberIds.size() == 2;
     }
 
+    // The shared streak count must stay a non-negative integer and can only grow
+    // by at most one per write (a single shared day advances it by one), or reset
+    // downward (streak broken / re-activated). This stops a member from arbitrarily
+    // inflating the shared count.
+    function validSharedStreakProgress() {
+      return request.resource.data.currentStreak is int
+        && request.resource.data.currentStreak >= 0
+        && request.resource.data.currentStreak <= resource.data.currentStreak + 1;
+    }
+
     function sharedStreakMembersDoNotChange() {
       return request.resource.data.memberIds == resource.data.memberIds
         && request.resource.data.memberNames == resource.data.memberNames
@@ -34,8 +44,38 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
+    // The one-time transition from Pending to Active. Activation is allowed to seed
+    // both members' completion dates at once (so a streak whose members both already
+    // finished today can advance), because validSharedStreakProgress still caps the
+    // count at +1 for that single write.
+    function isSharedStreakActivation() {
+      return resource.data.status == 'Pending'
+        && request.resource.data.status == 'Active';
+    }
+
+    // Outside of activation, a member may only add/modify/remove THEIR OWN entry in
+    // the per-member completion and like maps. This stops one member from forging the
+    // other's completion date (which would let them advance the shared streak alone)
+    // or tampering with the other's liked quests.
+    function onlyOwnSharedStreakDataChanged() {
+      return request.resource.data.lastCompletionDates
+          .diff(resource.data.lastCompletionDates)
+          .affectedKeys()
+          .hasOnly([request.auth.uid])
+        && request.resource.data.likedQuestIdsByMember
+          .diff(resource.data.likedQuestIdsByMember)
+          .affectedKeys()
+          .hasOnly([request.auth.uid]);
+    }
+
     match /users/{userId} {
       allow get: if signedIn();
+
+      // Needed so a signed-in user can look up a friend by exact email
+      // (whereEqualTo queries are "list" operations, not "get").
+      // Bounded to a single-result query so the whole user collection cannot be
+      // enumerated/scraped; the client email lookup always uses .limit(1).
+      allow list: if signedIn() && request.query.limit <= 1;
 
       allow create: if isSelf(userId)
         && request.resource.data.uid == userId;
@@ -73,10 +113,15 @@ service cloud.firestore {
         && isSharedStreakMemberAfterWrite()
         && hasTwoSharedStreakMembers()
         && sharedStreakMembersDoNotChange()
-        && validSharedStreakStatus();
+        && validSharedStreakStatus()
+        && validSharedStreakProgress()
+        && (isSharedStreakActivation() || onlyOwnSharedStreakDataChanged());
 
-      // A member may delete the shared streak, e.g. when deleting their account.
-      allow delete: if isSharedStreakMember();
+      // The inviter may cancel a pending invitation. Active/declined streaks are
+      // kept as shared history; account deletion ends them via status update.
+      allow delete: if isSharedStreakMember()
+        && resource.data.status == 'Pending'
+        && resource.data.invitedByUid == request.auth.uid;
     }
 
     match /quests/{questId} {

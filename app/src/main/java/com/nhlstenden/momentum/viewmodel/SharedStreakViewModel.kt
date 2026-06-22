@@ -1,5 +1,6 @@
 package com.nhlstenden.momentum.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -243,6 +244,27 @@ class SharedStreakViewModel(
 
     fun decline(streakId: String) = respond(streakId, accepted = false)
 
+    fun cancelInvitation(streakId: String) {
+        val uid = auth.currentUser?.uid
+        val invitation = outgoingInvitations.firstOrNull { it.id == streakId }
+        if (uid == null || invitation?.invitedByUid != uid) {
+            loadError = "We couldn't cancel that invitation. Please refresh and try again."
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) {
+                    sharedStreakRepository.cancelInvitation(streakId)
+                }
+            }.onSuccess {
+                refresh()
+            }.onFailure {
+                loadError = "We couldn't cancel that invitation. Please try again."
+            }
+        }
+    }
+
     fun clearInviteFeedback() {
         inviteError = null
         inviteSuccess = null
@@ -379,7 +401,7 @@ class SharedStreakViewModel(
         viewModelScope.launch {
             runCatching {
                 withTimeout(FIRESTORE_TIMEOUT_MS) { sharedStreakRepository.updateStreak(streak) }
-            }
+            }.onFailure { Log.w(TAG, "persist: failed to save shared streak ${streak.id}", it) }
         }
     }
 
@@ -407,7 +429,7 @@ class SharedStreakViewModel(
                         )
                     )
                 }
-            }
+            }.onFailure { Log.w(TAG, "ensureCurrentUserProfile: profile sync failed", it) }
         }
     }
 
@@ -420,5 +442,6 @@ class SharedStreakViewModel(
 
     private companion object {
         const val FIRESTORE_TIMEOUT_MS = 8_000L
+        const val TAG = "SharedStreakVM"
     }
 }
