@@ -9,7 +9,7 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Login** — Sign in with email and password
 - **Session Persistence** — Firebase session survives app restarts; returning users land directly on Home
 - **Sign Out** — Fully clears Firebase session token
-- **Account Deletion** — Reauthenticates with the user's password, removes user-linked Firestore data, and then deletes the Firebase Auth account
+- **Account Deletion** — Reauthenticates with the user's password, deletes private/user-authored Firestore data, ends shared streaks, and then deletes the Firebase Auth account
 - **Firebase Auth** — Secure authentication with error handling and validation
 - **Input Validation** — Real-time validation with user-friendly error messages
 
@@ -20,7 +20,7 @@ A gentle productivity app for students that turns daily tasks into manageable si
 
 ### Quest System
 - **Daily Quests** — 1-3 curated quests across Academic, Social, and Personal categories
-- **Quest Status Tracking** — Active, Skipped, Completed, SavedForLater states
+- **Quest Status Tracking** — Available, Active, Skipped, and Completed states
 - **Quest Cards** — Clean card UI with category chips, difficulty, and XP rewards
 - **Quest Detail** — Full quest view with skip and save-for-later options
 - **Completion Flow** — Mark quests done, records streak, add optional reflection
@@ -38,7 +38,7 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Push Notifications** — Local quest reminder notifications with runtime permission request (Android 13+)
 
 ### Friends, Feedback & Data Sync
-- **Shared Streaks** — Firestore-backed friend streaks with invite, accept, decline, and shared quest activity
+- **Shared Streaks** — Firestore-backed friend streaks with invite, accept, decline, cancel, and shared quest activity
 - **Friend Quest Board** — Shows liked quests from active shared-streak friends
 - **Quest Feedback** — Users can like or dislike quests; feedback is stored per user in Firestore
 - **Quest Suggestions & App Feedback** — Profile actions submit suggestions and feedback to Firestore
@@ -74,8 +74,7 @@ app/src/main/java/com/nhlstenden/momentum/
 │   ├── InterestsStore.kt              # SharedPreferences — selected interest categories
 │   ├── QuestLocalCache.kt             # SharedPreferences — offline quest cache
 │   ├── SuggestionsStore.kt            # Firestore quest suggestions
-│   ├── FeedbackStore.kt               # Firestore app feedback
-│   └── StreakStore.kt                 # SharedPreferences — consecutive-day streak logic
+│   └── FeedbackStore.kt               # Firestore app feedback
 ├── navigation/
 │   ├── MomentumDestinations.kt        # Route constants + bottom tab definitions
 │   └── MomentumNavGraph.kt            # Nav graph; session-aware start destination
@@ -120,6 +119,7 @@ app/src/main/java/com/nhlstenden/momentum/
 │       └── Spacing.kt                 # 8-point grid spacing
 └── viewmodel/
     ├── AuthViewModel.kt               # Auth state, validation, login/register logic
+    ├── DailyQuestSelector.kt          # Pure daily quest selection/ranking rules
     ├── ProfileViewModel.kt            # Profile editing and account deletion state
     ├── QuestViewModel.kt              # Quest list/progress/feedback state
     └── SharedStreakViewModel.kt       # Shared streak invite and activity state
@@ -165,7 +165,7 @@ app/src/main/java/com/nhlstenden/momentum/
 
 ### Firebase Rules
 
-Firestore security rules are stored in `firestore.rules`. They restrict private user data to the signed-in user, allow shared streak members to read/update their own shared streaks, and allow users to delete their own feedback/suggestions during account deletion.
+Firestore security rules are stored in `firestore.rules`. They restrict private user data to the signed-in user, allow shared streak members to read/update their own shared streaks, allow invite senders to cancel pending invitations, and allow users to delete their own feedback/suggestions during account deletion.
 
 ### Manual QA Checklist
 
@@ -186,9 +186,9 @@ Then verify the main app flows on an emulator or device:
 - Edit profile display name and theme
 - Send feedback and suggest a quest
 - Send a test notification after granting notification permission
-- Create/accept/decline shared streak invites when Firebase test accounts are available
+- Create, accept, decline, and cancel shared streak invites when Firebase test accounts are available
 - Delete account with a wrong password and confirm a friendly error appears
-- Delete account with the correct password and confirm Auth plus Firestore user-linked data are removed
+- Delete account with the correct password and confirm Auth plus private/user-authored Firestore data are removed
 
 ## Architecture
 
