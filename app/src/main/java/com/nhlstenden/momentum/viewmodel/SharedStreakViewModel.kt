@@ -1,5 +1,6 @@
 package com.nhlstenden.momentum.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -400,7 +401,7 @@ class SharedStreakViewModel(
         viewModelScope.launch {
             runCatching {
                 withTimeout(FIRESTORE_TIMEOUT_MS) { sharedStreakRepository.updateStreak(streak) }
-            }
+            }.onFailure { Log.w(TAG, "persist: failed to save shared streak ${streak.id}", it) }
         }
     }
 
@@ -428,7 +429,7 @@ class SharedStreakViewModel(
                         )
                     )
                 }
-            }
+            }.onFailure { Log.w(TAG, "ensureCurrentUserProfile: profile sync failed", it) }
         }
     }
 
@@ -441,5 +442,6 @@ class SharedStreakViewModel(
 
     private companion object {
         const val FIRESTORE_TIMEOUT_MS = 8_000L
+        const val TAG = "SharedStreakVM"
     }
 }

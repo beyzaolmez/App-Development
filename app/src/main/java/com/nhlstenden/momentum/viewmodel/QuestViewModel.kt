@@ -1,6 +1,7 @@
 package com.nhlstenden.momentum.viewmodel
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,7 +28,7 @@ import com.nhlstenden.momentum.data.repository.FirestoreQuestRepository
 import com.nhlstenden.momentum.data.repository.FirestoreUserRepository
 import com.nhlstenden.momentum.data.repository.InMemoryReflectionRepository
 import com.nhlstenden.momentum.data.repository.PredefinedQuestRepository
-import com.nhlstenden.momentum.data.repository.QuestRepository
+import com.nhlstenden.momentum.data.repository.QuestCatalog
 import com.nhlstenden.momentum.data.repository.ReflectionRepository
 import com.nhlstenden.momentum.data.repository.FirestoreSharedStreakRepository
 import com.nhlstenden.momentum.data.repository.SharedStreakRepository
@@ -38,6 +39,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -47,7 +49,7 @@ class QuestViewModel(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val firestoreQuestRepository: FirestoreQuestRepository = FirestoreQuestRepository(),
     private val feedbackRepository: FirestoreQuestFeedbackRepository = FirestoreQuestFeedbackRepository(),
-    private val fallbackQuestRepository: QuestRepository = PredefinedQuestRepository(),
+    private val fallbackQuestRepository: QuestCatalog = PredefinedQuestRepository(),
     private val userRepository: UserRepository = FirestoreUserRepository(),
     private val reflectionRepository: ReflectionRepository = FirestoreReflectionRepository(),
     private val demoReflectionRepository: ReflectionRepository = InMemoryReflectionRepository(),
@@ -55,7 +57,7 @@ class QuestViewModel(
 ) : ViewModel() {
     private val dailyQuestLimit = 3
     private val today: String
-        get() = dateFormat.get()!!.format(Date())
+        get() = dateFormat.get()!!.format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
 
     private var localCache: QuestLocalCache? = null
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
@@ -328,7 +330,7 @@ class QuestViewModel(
                     withTimeout(FIRESTORE_TIMEOUT_MS) {
                         sharedStreakRepository.recordQuestLike(uid, id)
                     }
-                }
+                }.onFailure { Log.w(TAG, "saveFeedback: failed to mirror like to shared streaks", it) }
             }
         }
     }
@@ -341,7 +343,7 @@ class QuestViewModel(
                 withTimeout(FIRESTORE_TIMEOUT_MS) {
                     sharedStreakRepository.recordQuestLike(uid, id)
                 }
-            }
+            }.onFailure { Log.w(TAG, "publishSharedQuestLike: failed to mirror like", it) }
         }
     }
 
@@ -557,49 +559,37 @@ class QuestViewModel(
         quest: Quest,
         countCompletedQuest: Boolean = true
     ) {
-        val user = runCatching {
-            withTimeout(FIRESTORE_TIMEOUT_MS) {
-                userRepository.getUser(uid)
-            }
-        }.getOrNull()
-        val currentProgress = user?.progress ?: userProgress
-        val newStreak = when (currentProgress.lastQuestCompletionDate) {
-            today -> currentProgress.currentStreak
-            yesterday() -> currentProgress.currentStreak + 1
-            else -> 1
-        }
-        val categoryCounts = currentProgress.categoryCounts.toMutableMap()
         val categoryKey = quest.category.name
-        categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
 
-        val updatedProgress = UserProgress(
-            currentStreak = newStreak,
-            completedQuestCount = currentProgress.completedQuestCount + if (countCompletedQuest) 1 else 0,
-            skippedQuestCount = currentProgress.skippedQuestCount,
-            categoryCounts = categoryCounts,
-            lastQuestCompletionDate = today
-        )
+        fun applyCompletion(current: UserProgress): UserProgress {
+            val newStreak = when (current.lastQuestCompletionDate) {
+                today -> current.currentStreak
+                yesterday() -> current.currentStreak + 1
+                else -> 1
+            }
+            val categoryCounts = current.categoryCounts.toMutableMap()
+            categoryCounts[categoryKey] = (categoryCounts[categoryKey] ?: 0) + 1
+            return current.copy(
+                currentStreak = newStreak,
+                completedQuestCount = current.completedQuestCount + if (countCompletedQuest) 1 else 0,
+                categoryCounts = categoryCounts,
+                lastQuestCompletionDate = today
+            )
+        }
+
+        // Atomic read-modify-write so two quests completed in quick succession can't
+        // clobber each other's increment. Falls back to a local-only update when offline.
+        val updatedProgress = runCatching {
+            withTimeout(FIRESTORE_TIMEOUT_MS) {
+                ensureUserDocumentExists(uid)
+                userRepository.applyProgressUpdate(uid, ::applyCompletion)
+            }
+        }.getOrElse {
+            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
+            applyCompletion(userProgress)
+        }
         userProgress = updatedProgress
         localCache?.saveUserProgress(uid, updatedProgress)
-        runCatching {
-            withTimeout(FIRESTORE_TIMEOUT_MS) {
-                if (user == null) {
-                    val firebaseUser = auth.currentUser
-                    userRepository.saveUser(
-                        User(
-                            uid = uid,
-                            displayName = firebaseUser?.displayName.orEmpty(),
-                            email = firebaseUser?.email.orEmpty(),
-                            progress = updatedProgress
-                        )
-                    )
-                } else {
-                    userRepository.updateProgress(uid = uid, progress = updatedProgress)
-                }
-            }
-        }.onFailure {
-            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
-        }
 
         // Record today's completion on every shared streak this user is part of, so a
         // connected friend's shared streak advances once both of them finish today.
@@ -607,40 +597,36 @@ class QuestViewModel(
             withTimeout(FIRESTORE_TIMEOUT_MS) {
                 sharedStreakRepository.recordCompletion(uid, today)
             }
-        }
+        }.onFailure { Log.w(TAG, "updateUserProgress: shared streak sync failed", it) }
     }
 
     private suspend fun updateSkippedProgress(uid: String) {
-        val user = runCatching {
+        fun applySkip(current: UserProgress): UserProgress =
+            current.copy(skippedQuestCount = current.skippedQuestCount + 1)
+
+        val updatedProgress = runCatching {
             withTimeout(FIRESTORE_TIMEOUT_MS) {
-                userRepository.getUser(uid)
+                ensureUserDocumentExists(uid)
+                userRepository.applyProgressUpdate(uid, ::applySkip)
             }
-        }.getOrNull()
-        val currentProgress = user?.progress ?: userProgress
-        val updatedProgress = currentProgress.copy(
-            skippedQuestCount = currentProgress.skippedQuestCount + 1
-        )
+        }.getOrElse {
+            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
+            applySkip(userProgress)
+        }
         userProgress = updatedProgress
         localCache?.saveUserProgress(uid, updatedProgress)
-        runCatching {
-            withTimeout(FIRESTORE_TIMEOUT_MS) {
-                if (user == null) {
-                    val firebaseUser = auth.currentUser
-                    userRepository.saveUser(
-                        User(
-                            uid = uid,
-                            displayName = firebaseUser?.displayName.orEmpty(),
-                            email = firebaseUser?.email.orEmpty(),
-                            progress = updatedProgress
-                        )
-                    )
-                } else {
-                    userRepository.updateProgress(uid = uid, progress = updatedProgress)
-                }
-            }
-        }.onFailure {
-            errorMessage = "Your progress is saved on this device, but we couldn't sync it online yet."
-        }
+    }
+
+    private suspend fun ensureUserDocumentExists(uid: String) {
+        if (userRepository.getUser(uid) != null) return
+        val firebaseUser = auth.currentUser
+        userRepository.saveUser(
+            User(
+                uid = uid,
+                displayName = firebaseUser?.displayName.orEmpty(),
+                email = firebaseUser?.email.orEmpty()
+            )
+        )
     }
 
     private fun List<Quest>.withStates(states: List<QuestState>): List<Quest> {
@@ -776,17 +762,20 @@ enum class QuestDataMode {
     Demo
 }
 
+private const val TAG = "QuestViewModel"
 private const val FIRESTORE_TIMEOUT_MS = 8_000L
 private const val DIRECT_FEEDBACK_WEIGHT = 100
 private const val DEMO_REFLECTION_UID = "demo-reflections"
 private const val DEFAULT_REFLECTION_PROMPT = "What did you notice, learn, or want to do differently next time?"
 
+// UTC so that personal-streak dates line up with SharedStreakLogic (also UTC),
+// preventing streaks from breaking or double-counting around midnight / across timezones.
 private val dateFormat = ThreadLocal.withInitial {
-    SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
 }
 
 private fun yesterday(): String {
-    val calendar = Calendar.getInstance()
+    val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
     calendar.add(Calendar.DAY_OF_YEAR, -1)
     return dateFormat.get()!!.format(calendar.time)
 }
@@ -815,7 +804,10 @@ private fun preferredProgress(
 ): UserProgress =
     listOfNotNull(remoteProgress, cachedProgress, UserProgress())
         .maxWith(
-            compareBy<UserProgress> { it.completedQuestCount }
+            // "yyyy-MM-dd" sorts lexicographically, so the most recent completion wins first;
+            // counts only break ties when both sources were last active on the same day.
+            compareBy<UserProgress> { it.lastQuestCompletionDate ?: "" }
+                .thenBy { it.completedQuestCount }
                 .thenBy { it.currentStreak }
         )
 
