@@ -12,7 +12,6 @@ object Routes {
     const val Welcome = "welcome"
     const val SignIn = "signin"
     const val SignUp = "signup"
-    const val Forgot = "forgot"
     const val Onboarding = "onboarding"
     const val Interests = "interests"
 

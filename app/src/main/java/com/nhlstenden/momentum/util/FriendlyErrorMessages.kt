@@ -98,26 +98,6 @@ object FriendlyErrorMessages {
         }
     }
 
-    /**
-     * Friendly copy for a password-reset email failure.
-     *
-     * @param errorCode the Firebase error code, if any.
-     * @param rawMessage the exception's message, used only to sniff for keywords.
-     */
-    fun passwordReset(errorCode: String?, rawMessage: String?): String {
-        val diagnostic = "${errorCode.orEmpty()} ${rawMessage.orEmpty()}".uppercase()
-        return when {
-            "INVALID_EMAIL" in diagnostic ->
-                "That doesn't look like a valid email. Please check it and try again."
-            "USER_NOT_FOUND" in diagnostic ->
-                "No account found for that email. Check the address or create an account."
-            "TOO_MANY_REQUESTS" in diagnostic ->
-                "Too many attempts in a row. Please wait a moment and try again."
-            "NETWORK" in diagnostic ->
-                "Can't reach the network. Check your connection and try again."
-            else -> "We couldn't send the reset link. Please try again."
-        }
-    }
 }
 
 /** Maps any auth exception to friendly copy, extracting the Firebase error code when present. */
@@ -131,13 +111,6 @@ fun Throwable.toFriendlyAuthMessage(action: String): String =
 /** Maps any quest load/sync exception to friendly copy. */
 fun Throwable.toFriendlyQuestDataMessage(): String =
     FriendlyErrorMessages.firestoreSync(localizedMessage)
-
-/** Maps any password-reset exception to friendly copy. */
-fun Throwable.toFriendlyPasswordResetMessage(): String =
-    FriendlyErrorMessages.passwordReset(
-        errorCode = (this as? FirebaseAuthException)?.errorCode,
-        rawMessage = localizedMessage
-    )
 
 /** Maps any exception to friendly copy for account deletion. */
 fun Throwable.toFriendlyAccountDeletionMessage(): String =

@@ -21,7 +21,6 @@ import com.nhlstenden.momentum.data.InterestsStore
 import com.nhlstenden.momentum.data.model.QuestFeedbackType
 import com.nhlstenden.momentum.notification.NotificationHelper
 import com.nhlstenden.momentum.ui.components.MomentumBottomNav
-import com.nhlstenden.momentum.ui.screens.auth.ForgotPasswordScreen
 import com.nhlstenden.momentum.ui.screens.profile.FeedbackScreen
 import com.nhlstenden.momentum.ui.screens.profile.SuggestQuestScreen
 import com.nhlstenden.momentum.ui.screens.auth.SignInScreen
@@ -104,7 +103,6 @@ fun MomentumApp(
             composable(Routes.SignIn) {
                 SignInScreen(
                     onSignedIn = navigateHome,
-                    onForgot = { navController.navigate(Routes.Forgot) },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -119,13 +117,6 @@ fun MomentumApp(
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Routes.Forgot) {
-                ForgotPasswordScreen(
-                    onSent = { navController.popBackStack() },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
             // ---------- Profile sub-screens ----------
             composable(Routes.SuggestQuest) {
                 SuggestQuestScreen(onBack = { navController.popBackStack() })

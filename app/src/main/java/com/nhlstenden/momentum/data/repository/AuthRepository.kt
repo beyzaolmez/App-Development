@@ -98,10 +98,6 @@ class AuthRepository(
         ensureUserProfile()
     }
 
-    suspend fun sendPasswordResetEmail(email: String) {
-        firebaseAuth.sendPasswordResetEmail(email).await()
-    }
-
     fun signOut() {
         firebaseAuth.signOut()
     }

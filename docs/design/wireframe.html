@@ -682,7 +682,6 @@
                 <input class="field" placeholder="Student email" />
                 <input class="field" placeholder="Password" type="password" />
                 <button class="primary" data-go="home">Sign in</button>
-                <button class="quiet" data-go="forgot">Forgot password</button>
               </section>
             </div>
           `
@@ -700,19 +699,6 @@
                 <button class="primary" data-go="onboardingTone">Continue</button>
                 <button class="quiet" data-go="signin">I already have an account</button>
               </section>
-            </div>
-          `
-        },
-        forgot: {
-          label: "Forgot Password",
-          note: "Recovery stays plain and reassuring.",
-          html: `
-            <div class="appbar"><button class="icon-btn back-btn" data-go="signin" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Reset password</strong><span></span></div>
-            <div class="card stack">
-              <h2>Reset your password</h2>
-              <p class="soft-copy">Enter your email and we will send a reset link.</p>
-              <input class="field" placeholder="Email address" />
-              <button class="primary" data-go="signin">Send link</button>
             </div>
           `
         },
@@ -1089,7 +1075,6 @@
         "auth",
         "signin",
         "signup",
-        "forgot",
         "onboardingTone",
         "onboardingInterests",
         "onboardingRhythm",
