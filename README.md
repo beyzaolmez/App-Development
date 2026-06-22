@@ -58,9 +58,20 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Min SDK:** 24 (Android 7.0)
 - **Target SDK:** 34 (Android 14)
 
+## Documentation
+
+- **Wireframe:** `docs/design/wireframe.html`
+- **Firestore ERD:** `docs/architecture/momentum-firestore-erd-current.svg`
+
 ## Project Structure
 
 ```
+docs/
+├── architecture/
+│   └── momentum-firestore-erd-current.svg # Current Firestore ERD
+└── design/
+    └── wireframe.html                     # Project wireframe
+
 app/src/main/java/com/nhlstenden/momentum/
 ├── MomentumApplication.kt             # App entry point; registers notification channel
 ├── MainActivity.kt                    # Single activity; requests notification permission
