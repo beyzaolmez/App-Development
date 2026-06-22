@@ -57,18 +57,19 @@ interface SharedStreakRepository {
 }
 
 class InMemorySharedStreakRepository : SharedStreakRepository {
+    private val lock = Any()
     private val streaks = mutableMapOf<String, SharedStreak>()
     private var nextId = 1
 
     override suspend fun getStreaksForUser(uid: String): List<SharedStreak> =
-        streaks.values.filter { uid in it.memberIds }
+        synchronized(lock) { streaks.values.filter { uid in it.memberIds } }
 
     override fun observeStreaksForUser(
         uid: String,
         onChange: (List<SharedStreak>) -> Unit,
         onError: (Throwable) -> Unit
     ): ListenerRegistration {
-        onChange(streaks.values.filter { uid in it.memberIds })
+        onChange(synchronized(lock) { streaks.values.filter { uid in it.memberIds } })
         return ListenerRegistration {}
     }
 
@@ -77,7 +78,7 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
         inviterName: String,
         inviteeUid: String,
         inviteeName: String
-    ): String {
+    ): String = synchronized(lock) {
         val id = "shared-${nextId++}"
         streaks[id] = SharedStreak(
             id = id,
@@ -87,11 +88,11 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
             invitedByUid = inviterUid,
             createdAt = System.currentTimeMillis()
         )
-        return id
+        id
     }
 
-    override suspend fun respondToInvitation(streakId: String, accepted: Boolean) {
-        val existing = streaks[streakId] ?: return
+    override suspend fun respondToInvitation(streakId: String, accepted: Boolean) = synchronized(lock) {
+        val existing = streaks[streakId] ?: return@synchronized
         streaks[streakId] = if (accepted) {
             existing.copy(
                 status = SharedStreakStatus.Active,
@@ -104,18 +105,20 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
         }
     }
 
-    override suspend fun cancelInvitation(streakId: String) {
-        val existing = streaks[streakId] ?: return
+    override suspend fun cancelInvitation(streakId: String) = synchronized(lock) {
+        val existing = streaks[streakId] ?: return@synchronized
         if (existing.status == SharedStreakStatus.Pending) {
             streaks.remove(streakId)
         }
+        Unit
     }
 
-    override suspend fun updateStreak(streak: SharedStreak) {
+    override suspend fun updateStreak(streak: SharedStreak) = synchronized(lock) {
         streaks[streak.id] = streak
+        Unit
     }
 
-    override suspend fun recordCompletion(uid: String, today: String) {
+    override suspend fun recordCompletion(uid: String, today: String) = synchronized(lock) {
         streaks.values
             .filter { it.status == SharedStreakStatus.Active && uid in it.memberIds }
             .forEach { streak ->
@@ -123,7 +126,7 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
             }
     }
 
-    override suspend fun recordQuestLike(uid: String, questId: String) {
+    override suspend fun recordQuestLike(uid: String, questId: String) = synchronized(lock) {
         streaks.values
             .filter { it.status == SharedStreakStatus.Active && uid in it.memberIds }
             .forEach { streak ->
@@ -132,9 +135,11 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
     }
 
     override suspend fun hasExistingStreakWithUser(uid1: String, uid2: String): Boolean =
-        streaks.values.any {
-            uid1 in it.memberIds && uid2 in it.memberIds &&
-                (it.status == SharedStreakStatus.Active || it.status == SharedStreakStatus.Pending)
+        synchronized(lock) {
+            streaks.values.any {
+                uid1 in it.memberIds && uid2 in it.memberIds &&
+                    (it.status == SharedStreakStatus.Active || it.status == SharedStreakStatus.Pending)
+            }
         }
 }
 

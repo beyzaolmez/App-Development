@@ -9,14 +9,20 @@ import com.nhlstenden.momentum.data.model.QuestStatus
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
-interface QuestRepository {
+/** Read-only source of the quest catalogue (the quest definitions themselves). */
+interface QuestCatalog {
     fun getQuests(): List<Quest>
     fun getQuestById(id: String): Quest?
+}
+
+/** Per-user quest progress/state storage. */
+interface QuestRepository {
     suspend fun getQuestStates(uid: String): List<QuestState>
     suspend fun saveQuestState(uid: String, questState: QuestState)
 }
 
-class PredefinedQuestRepository : QuestRepository {
+class PredefinedQuestRepository : QuestCatalog, QuestRepository {
+    private val stateLock = Any()
     private val questStatesByUser = mutableMapOf<String, List<QuestState>>()
 
     private val quests = listOf(
@@ -429,26 +435,23 @@ class PredefinedQuestRepository : QuestRepository {
     override fun getQuestById(id: String): Quest? = quests.firstOrNull { it.id == id }
 
     override suspend fun getQuestStates(uid: String): List<QuestState> =
-        questStatesByUser[uid].orEmpty()
+        synchronized(stateLock) { questStatesByUser[uid].orEmpty() }
 
-    override suspend fun saveQuestState(uid: String, questState: QuestState) {
-        val existingStates = questStatesByUser[uid].orEmpty()
-        val existingState = existingStates.firstOrNull { it.questStateId == questState.questStateId }
-        if (existingState != null && existingState.isMoreFinalThan(questState)) return
+    override suspend fun saveQuestState(uid: String, questState: QuestState) =
+        synchronized(stateLock) {
+            val existingStates = questStatesByUser[uid].orEmpty()
+            val existingState = existingStates.firstOrNull { it.questStateId == questState.questStateId }
+            if (existingState != null && existingState.isMoreFinalThan(questState)) return@synchronized
 
-        questStatesByUser[uid] = existingStates
-            .filterNot { it.questStateId == questState.questStateId }
-            .plus(questState)
-    }
+            questStatesByUser[uid] = existingStates
+                .filterNot { it.questStateId == questState.questStateId }
+                .plus(questState)
+        }
 }
 
 class FirestoreQuestRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) : QuestRepository {
-    override fun getQuests(): List<Quest> = emptyList()
-
-    override fun getQuestById(id: String): Quest? = null
-
     suspend fun seedQuests(quests: List<Quest>) {
         val batch = firestore.batch()
         quests.forEach { quest ->

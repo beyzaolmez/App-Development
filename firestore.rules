@@ -37,6 +37,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if signedIn();
 
+      // Needed so a signed-in user can look up a friend by exact email
+      // (whereEqualTo queries are "list" operations, not "get").
+      // Bounded to a single-result query so the whole user collection cannot be
+      // enumerated/scraped; the client email lookup always uses .limit(1).
+      allow list: if signedIn() && request.query.limit <= 1;
+
       allow create: if isSelf(userId)
         && request.resource.data.uid == userId;
 

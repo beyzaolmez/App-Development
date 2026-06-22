@@ -12,12 +12,13 @@ interface QuestFeedbackRepository {
 }
 
 class InMemoryQuestFeedbackRepository : QuestFeedbackRepository {
+    private val lock = Any()
     private val feedbackByUser = mutableMapOf<String, List<QuestFeedback>>()
 
     override suspend fun getFeedback(uid: String): List<QuestFeedback> =
-        feedbackByUser[uid].orEmpty().sortedByDescending { it.createdAt }
+        synchronized(lock) { feedbackByUser[uid].orEmpty().sortedByDescending { it.createdAt } }
 
-    override suspend fun saveFeedback(uid: String, feedback: QuestFeedback) {
+    override suspend fun saveFeedback(uid: String, feedback: QuestFeedback) = synchronized(lock) {
         feedbackByUser[uid] = feedbackByUser[uid].orEmpty() + feedback
     }
 }
