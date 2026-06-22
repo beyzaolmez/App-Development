@@ -155,7 +155,7 @@ app/src/main/java/com/nhlstenden/momentum/
    - Wait for Gradle sync to complete
 
 3. **Firebase Setup (Required for Auth)**
-   The app uses Firebase Authentication. You need to add your own `google-services.json`:
+   The app uses Firebase Authentication. The required `app/google-services.json` file is already included for the default Firebase project. Only replace it if you want to use your own Firebase project:
    
    - Go to [Firebase Console](https://console.firebase.google.com)
    - Create a new project or use existing
