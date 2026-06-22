@@ -103,7 +103,6 @@ app/src/main/java/com/nhlstenden/momentum/
 │   │   │   ├── WelcomeScreen.kt       # Landing screen
 │   │   │   ├── SignInScreen.kt        # Login with Firebase
 │   │   │   ├── SignUpScreen.kt        # Registration with validation
-│   │   │   ├── ForgotPasswordScreen.kt # Password reset
 │   │   │   └── AuthHeader.kt          # Shared auth header
 │   │   ├── onboarding/
 │   │   │   ├── OnboardingScreen.kt    # 3-page swipeable first-run intro
@@ -156,7 +155,7 @@ app/src/main/java/com/nhlstenden/momentum/
    - Wait for Gradle sync to complete
 
 3. **Firebase Setup (Required for Auth)**
-   The app uses Firebase Authentication. You need to add your own `google-services.json`:
+   The app uses Firebase Authentication. The required `app/google-services.json` file is already included for the default Firebase project. Only replace it if you want to use your own Firebase project:
    
    - Go to [Firebase Console](https://console.firebase.google.com)
    - Create a new project or use existing
@@ -218,7 +217,7 @@ Then verify the main app flows on an emulator or device:
 - Bottom nav for main screens, full-screen auth flow
 
 ### External Subsystems
-- **Firebase Auth** handles email/password registration, login, password reset, profile display name updates, sign-out, and account deletion.
+- **Firebase Auth** handles email/password registration, login, profile display name updates, sign-out, and account deletion.
 - **Cloud Firestore** stores user profiles, quest states, journal entries, shared streaks, quest feedback, app feedback, and quest suggestions.
 - **SharedPreferences** stores lightweight local-only preferences and fallback state such as selected interests and streak metadata.
 - **Android Notifications** provide local quest reminders through a registered notification channel.

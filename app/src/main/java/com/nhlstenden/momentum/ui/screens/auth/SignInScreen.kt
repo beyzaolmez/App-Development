@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nhlstenden.momentum.ui.components.MomentumInlineError
 import com.nhlstenden.momentum.ui.components.MomentumPrimaryButton
-import com.nhlstenden.momentum.ui.components.MomentumQuietButton
 import com.nhlstenden.momentum.ui.components.MomentumTextField
 import com.nhlstenden.momentum.ui.theme.MomentumTheme
 import com.nhlstenden.momentum.viewmodel.AuthViewModel
@@ -23,7 +22,6 @@ import com.nhlstenden.momentum.viewmodel.AuthViewModel
 @Composable
 fun SignInScreen(
     onSignedIn: () -> Unit = {},
-    onForgot: () -> Unit = {},
     onBack: () -> Unit = {},
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -60,12 +58,6 @@ fun SignInScreen(
         MomentumPrimaryButton(
             text = if (uiState.isRegistering) "Signing in..." else "Sign in",
             onClick = { authViewModel.signIn(onSignedIn) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !uiState.isRegistering
-        )
-        MomentumQuietButton(
-            text = "Forgot password",
-            onClick = onForgot,
             modifier = Modifier.fillMaxWidth(),
             enabled = !uiState.isRegistering
         )
