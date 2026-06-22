@@ -58,7 +58,7 @@ class QuestViewModel(
 ) : ViewModel() {
     private val dailyQuestLimit = 3
     private val today: String
-        get() = dateFormat.get()!!.format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
+        get() = utcDateFormat().format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
 
     private var localCache: QuestLocalCache? = null
     private var dailyQuestIds by mutableStateOf<Set<String>>(emptySet())
@@ -101,36 +101,16 @@ class QuestViewModel(
         loadQuests()
     }
 
-    fun visibleQuests(selectedInterests: Set<String> = emptySet()): List<Quest> {
-        val filteredQuests = selectedStatus?.let { status ->
-            quests.filter { it.status == status }
-        } ?: quests
-
-        val interestFilteredQuests = if (selectedInterests.isEmpty()) {
-            filteredQuests
-        } else {
-            filteredQuests.filter { it.category.label in selectedInterests }
-        }.ifEmpty { filteredQuests }
-
-        val visibleCandidates = if (selectedInterests.isNotEmpty() && selectedStatus == null) {
-            interestFilteredQuests
-                .filter { it.isLongTerm }
-                .plus(
-                    interestFilteredQuests
-                        .filterNot { it.isLongTerm }
-                        .takeBalancedDailyQuests(selectedInterests)
-                )
-        } else {
-            interestFilteredQuests.dailyLimited()
-        }
-
-        return visibleCandidates.sortedWith(
-            compareByDescending<Quest> { it.recommendationScore() }
-                .thenBy { it.status.sortOrder }
-                .thenBy { it.category.label }
-                .thenBy { it.title }
+    fun visibleQuests(selectedInterests: Set<String> = emptySet()): List<Quest> =
+        DailyQuestSelector.visibleQuests(
+            quests = quests,
+            selectedStatus = selectedStatus,
+            selectedInterests = selectedInterests,
+            dailyQuestLimit = dailyQuestLimit,
+            dailyQuestIds = dailyQuestIds,
+            feedbackByQuestId = feedbackByQuestId,
+            feedbackScoreByCategory = feedbackScoreByCategory
         )
-    }
 
     fun activeQuestCount(): Int = quests.count { it.status == QuestStatus.Active }
 
@@ -683,60 +663,13 @@ class QuestViewModel(
         )
     }
 
-    private fun List<Quest>.dailyLimited(): List<Quest> {
-        if (selectedStatus != null && selectedStatus != QuestStatus.Available) return this
-
-        return filter { quest ->
-            quest.isLongTerm || quest.status != QuestStatus.Available || quest.id in dailyQuestIds
-        }
-    }
-
-    private fun List<Quest>.takeBalancedDailyQuests(selectedInterests: Set<String>): List<Quest> {
-        val prioritized = prioritizedByFeedback()
-        if (selectedInterests.isEmpty()) return prioritized.take(dailyQuestLimit)
-
-        val byInterest = selectedInterests
-            .mapNotNull { interest ->
-                val questsForInterest = prioritized.filter { it.category.label == interest }
-                if (questsForInterest.isEmpty()) null else interest to questsForInterest
-            }
-            .toMap()
-
-        val balanced = mutableListOf<Quest>()
-        var index = 0
-        while (balanced.size < dailyQuestLimit) {
-            val nextRound = selectedInterests.mapNotNull { interest ->
-                byInterest[interest]?.getOrNull(index)
-            }
-            if (nextRound.isEmpty()) break
-            balanced += nextRound.filterNot { quest -> balanced.any { it.id == quest.id } }
-            index += 1
-        }
-
-        return balanced
-            .take(dailyQuestLimit)
-            .ifEmpty { prioritized.take(dailyQuestLimit) }
-    }
-
-    private fun List<Quest>.prioritizedByFeedback(): List<Quest> =
-        sortedWith(
-            compareByDescending<Quest> { it.recommendationScore() }
-                .thenBy { it.status.sortOrder }
-                .thenBy { it.category.label }
-                .thenBy { it.title }
-        )
-
-    private fun Quest.recommendationScore(): Int =
-        ((feedbackByQuestId[id]?.preferenceScore ?: 0) * DIRECT_FEEDBACK_WEIGHT) +
-            (feedbackScoreByCategory[category] ?: 0)
-
     private fun refreshDailyAssignments(sourceQuests: List<Quest> = quests) {
-        dailyQuestIds = sourceQuests
-            .filterNot { it.isLongTerm }
-            .prioritizedByFeedback()
-            .take(dailyQuestLimit)
-            .map { it.id }
-            .toSet()
+        dailyQuestIds = DailyQuestSelector.dailyQuestIds(
+            quests = sourceQuests,
+            dailyQuestLimit = dailyQuestLimit,
+            feedbackByQuestId = feedbackByQuestId,
+            feedbackScoreByCategory = feedbackScoreByCategory
+        )
     }
 
     private fun updateDemoActivityProgress(
@@ -756,7 +689,7 @@ class QuestViewModel(
 
     private fun Quest.wasProgressUpdatedToday(now: Long = System.currentTimeMillis()): Boolean {
         val updatedAt = lastProgressUpdatedAt ?: return false
-        return dateFormat.get()!!.format(Date(updatedAt)) == dateFormat.get()!!.format(Date(now))
+        return utcDateFormat().format(Date(updatedAt)) == utcDateFormat().format(Date(now))
     }
 }
 
@@ -774,7 +707,6 @@ enum class QuestDataMode {
 
 private const val TAG = "QuestViewModel"
 private const val FIRESTORE_TIMEOUT_MS = 8_000L
-private const val DIRECT_FEEDBACK_WEIGHT = 100
 private const val DEMO_REFLECTION_UID = "demo-reflections"
 private const val DEFAULT_REFLECTION_PROMPT = "What did you notice, learn, or want to do differently next time?"
 
@@ -784,19 +716,18 @@ private val dateFormat = ThreadLocal.withInitial {
     SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
 }
 
+// Single place that resolves the thread-local formatter, so the non-null handling
+// lives here instead of being repeated as `!!` at every call site.
+private fun utcDateFormat(): SimpleDateFormat =
+    dateFormat.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+
 private fun yesterday(): String {
     val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
     calendar.add(Calendar.DAY_OF_YEAR, -1)
-    return dateFormat.get()!!.format(calendar.time)
+    return utcDateFormat().format(calendar.time)
 }
-
-private val QuestStatus.sortOrder: Int
-    get() = when (this) {
-        QuestStatus.Active -> 0
-        QuestStatus.Available -> 1
-        QuestStatus.Completed -> 2
-        QuestStatus.Skipped -> 3
-    }
 
 private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<QuestState>): List<QuestState> =
     (remoteStates + cachedStates)
@@ -805,7 +736,7 @@ private fun mergeQuestStates(remoteStates: List<QuestState>, cachedStates: List<
 
 private fun List<QuestState>.filterForCurrentQuests(quests: List<Quest>): List<QuestState> {
     val longTermQuestIds = quests.filter { it.isLongTerm }.map { it.id }.toSet()
-    return filter { state -> state.date == dateFormat.get()!!.format(Date()) || state.questId in longTermQuestIds }
+    return filter { state -> state.date == utcDateFormat().format(Date()) || state.questId in longTermQuestIds }
 }
 
 private fun preferredProgress(
@@ -841,14 +772,6 @@ private fun Map<QuestCategory, Int>.updatedWith(
         this + (category to updatedScore)
     }
 }
-
-private val QuestFeedbackType.preferenceScore: Int
-    get() = when (this) {
-        QuestFeedbackType.Like -> 2
-        QuestFeedbackType.MoreLikeThis -> 1
-        QuestFeedbackType.NotForMe -> -1
-        QuestFeedbackType.Dislike -> -2
-    }
 
 private fun Quest.reflectionPrompt(): String = journalPrompt ?: when (category) {
     QuestCategory.Academic -> "What helped your learning, and what could you improve next time?"
