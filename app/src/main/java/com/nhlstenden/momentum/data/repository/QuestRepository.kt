@@ -6,6 +6,7 @@ import com.nhlstenden.momentum.data.model.QuestDifficulty
 import com.nhlstenden.momentum.data.model.QuestGoalType
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
+import com.nhlstenden.momentum.data.model.persistenceRank
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -607,11 +608,3 @@ private fun String?.toQuestStatus(): QuestStatus =
 private fun QuestState.isMoreFinalThan(other: QuestState): Boolean =
     status.persistenceRank > other.status.persistenceRank ||
         (status.persistenceRank == other.status.persistenceRank && currentProgress > other.currentProgress)
-
-private val QuestStatus.persistenceRank: Int
-    get() = when (this) {
-        QuestStatus.Available -> 0
-        QuestStatus.Active -> 1
-        QuestStatus.Skipped -> 2
-        QuestStatus.Completed -> 3
-    }
