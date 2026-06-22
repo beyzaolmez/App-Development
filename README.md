@@ -18,11 +18,12 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Quest Filtering** — Home screen shows only quests matching saved interests; falls back to all quests if none saved
 
 ### Quest System
-- **Daily Quests** — 1-3 curated quests across Academic, Social, and Personal categories
-- **Quest Status Tracking** — Active, Skipped, Completed, SavedForLater states
+- **Daily Quests** — Up to 3 curated daily quests across Academic, Focus, Wellbeing, Social, and Movement categories
+- **Long-Term Quests** — Multi-step goals track progress over several days or sessions
+- **Quest Status Tracking** — Available, Active, Skipped, and Completed states
 - **Quest Cards** — Clean card UI with category chips, difficulty, and XP rewards
-- **Quest Detail** — Full quest view with skip and save-for-later options
-- **Completion Flow** — Mark quests done, records streak, add optional reflection
+- **Quest Detail** — Full quest view with start, skip, completion, feedback, and progress actions
+- **Completion Flow** — Mark quests done, records streaks, and supports quest reflections
 
 ### Navigation & UI
 - **Bottom Navigation** — Home, Reflect, Progress, Friends, Profile tabs
@@ -31,9 +32,10 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Custom Components** — Momentum-themed buttons, cards, chips, and text fields
 
 ### Progress & Notifications
-- **Soft Streaks** — Consecutive-day streak tracked in SharedPreferences; resets on missed day
+- **Soft Streaks** — Consecutive-day streak tracked in user progress and cached locally for resilience
 - **Live Streak Display** — Streak count shown on Home header chip and Progress stats card
 - **Category Balance** — Visual breakdown of quest categories completed
+- **Shared Streaks** — Invite friends and track paired daily completion streaks
 - **Push Notifications** — Local quest reminder notifications with runtime permission request (Android 13+)
 
 ## Tech Stack
@@ -42,7 +44,7 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **UI Framework:** Jetpack Compose with Material3
 - **Architecture:** MVVM (Model-View-ViewModel)
 - **Navigation:** Jetpack Compose Navigation
-- **Backend:** Firebase Authentication
+- **Backend:** Firebase Authentication and Cloud Firestore
 - **Build:** Gradle 8.13.2
 - **Min SDK:** 24 (Android 7.0)
 - **Target SDK:** 34 (Android 14)
@@ -55,9 +57,14 @@ app/src/main/java/com/nhlstenden/momentum/
 ├── MainActivity.kt                    # Single activity; requests notification permission
 ├── data/
 │   ├── repository/
-│   │   └── AuthRepository.kt          # Firebase Auth (register, login, signOut, currentUser)
+│   │   ├── AuthRepository.kt          # Firebase Auth (register, login, signOut, currentUser)
+│   │   ├── QuestRepository.kt         # Predefined quests, Firestore quest loading, quest state sync
+│   │   ├── ReflectionRepository.kt    # Firestore-backed quest reflections
+│   │   ├── SharedStreakRepository.kt  # Friend/shared streak persistence
+│   │   └── UserRepository.kt          # User profile and progress persistence
 │   ├── InterestsStore.kt              # SharedPreferences — selected interest categories
-│   └── StreakStore.kt                 # SharedPreferences — consecutive-day streak logic
+│   ├── QuestLocalCache.kt             # Local quest state/user progress cache
+│   └── StreakStore.kt                 # Legacy local streak helper
 ├── navigation/
 │   ├── MomentumDestinations.kt        # Route constants + bottom tab definitions
 │   └── MomentumNavGraph.kt            # Nav graph; session-aware start destination
@@ -81,14 +88,15 @@ app/src/main/java/com/nhlstenden/momentum/
 │   │   │   ├── OnboardingScreen.kt    # 3-page swipeable first-run intro
 │   │   │   └── InterestSelectionScreen.kt # Category chip picker after sign-up
 │   │   ├── home/
-│   │   │   └── HomeScreen.kt          # Daily quests filtered by interests + streak
+│   │   │   └── HomeScreen.kt          # Daily and long-term quests filtered by interests
 │   │   ├── quest/
-│   │   │   ├── QuestDetailScreen.kt   # Quest detail with skip / save-for-later
-│   │   │   └── CompleteScreen.kt      # Completion screen; records streak
+│   │   │   ├── QuestDetailScreen.kt   # Quest detail with skip, feedback, completion, and progress actions
+│   │   │   ├── QuestReflectionScreen.kt # Quest-linked reflection capture
+│   │   │   └── CompleteScreen.kt      # Completion confirmation screen
 │   │   ├── reflect/
 │   │   │   └── ReflectScreen.kt       # Optional reflection notes
 │   │   ├── progress/
-│   │   │   └── ProgressScreen.kt      # Streak stat + category balance bars
+│   │   │   └── ProgressScreen.kt      # Streak stats, long-term progress, and category balance
 │   │   ├── friends/
 │   │   │   └── FriendsScreen.kt       # Friend streaks and invites
 │   │   └── profile/
@@ -100,7 +108,8 @@ app/src/main/java/com/nhlstenden/momentum/
 │       ├── Shape.kt                   # Corner radius definitions
 │       └── Spacing.kt                 # 8-point grid spacing
 └── viewmodel/
-    └── AuthViewModel.kt               # Auth state, validation, login/register logic
+    ├── AuthViewModel.kt               # Auth state, validation, login/register logic
+    └── QuestViewModel.kt              # Quest loading, status changes, progress, feedback, and reflections
 ```
 
 ## Getting Started
@@ -131,6 +140,8 @@ app/src/main/java/com/nhlstenden/momentum/
    - Download `google-services.json`
    - Place it in: `app/google-services.json`
    - Enable Email/Password authentication in Firebase Console → Authentication → Sign-in method
+   - Quest collection schema, validation, and seeding notes are documented in `docs/firestore-quest-content.md`
+   - Production quest seeding is handled by the Firebase Admin SDK script in `scripts/seed-firestore-quests.mjs`
 
 4. **Build and Run**
    - Connect device or start emulator
@@ -141,10 +152,10 @@ app/src/main/java/com/nhlstenden/momentum/
 ### MVVM Pattern
 - **View (Screen)** — Composable UI, observes ViewModel state
 - **ViewModel** — Holds UI state, handles user actions, validates input
-- **Repository** — Abstracts Firebase Auth operations
+- **Repository** — Abstracts Firebase Auth, Firestore data, local fallbacks, and cache operations
 
 ### State Management
-- `StateFlow` for reactive UI updates
+- Compose state and ViewModels for reactive UI updates
 - Unidirectional data flow: UI → ViewModel → Repository → Firebase
 
 ### Navigation

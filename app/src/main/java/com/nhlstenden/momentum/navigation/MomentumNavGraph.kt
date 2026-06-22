@@ -157,7 +157,6 @@ fun MomentumApp(
                         ?.takeIf { it.isNotBlank() }
                         ?: firebaseUser?.email?.substringBefore("@")
                         ?: "Testing user",
-                    dataMode = questViewModel.dataMode,
                     errorMessage = questViewModel.errorMessage,
                     selectedStatus = questViewModel.selectedStatus,
                     activeQuestCount = questViewModel.activeQuestCount(),

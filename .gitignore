@@ -12,6 +12,7 @@ bin/
 gen/
 out/
 build/
+node_modules/
 
 # Gradle files
 .gradle/
@@ -50,6 +51,8 @@ Thumbs.db
 
 # Firebase / Google Services (optional)
 google-services.json
+firebase-service-account*.json
+service-account*.json
 
 # Fastlane
 fastlane/report.xml

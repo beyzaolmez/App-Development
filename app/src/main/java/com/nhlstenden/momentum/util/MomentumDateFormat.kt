@@ -29,17 +29,20 @@ object MomentumDateFormat {
     }
 
     /** Format a Date as "yyyy-MM-dd" (UTC/Locale.US). */
-    fun formatIso(date: Date): String = isoDateFormat.get().format(date)
+    fun formatIso(date: Date): String = isoDateFormat.formatter().format(date)
 
     /** Parse a string in "yyyy-MM-dd" format. */
-    fun parseIso(string: String): Date? = isoDateFormat.get().parse(string)
+    fun parseIso(string: String): Date? = isoDateFormat.formatter().parse(string)
 
     /** Format a Date as "yyyy-MM-dd HH:mm" (Locale default). */
-    fun formatIsoDateTime(date: Date): String = isoDateTimeFormat.get().format(date)
+    fun formatIsoDateTime(date: Date): String = isoDateTimeFormat.formatter().format(date)
 
     /** Format a timestamp as "MMM d, HH:mm" for history display. */
-    fun formatHistory(timestamp: Long): String = historyDateFormat.get().format(Date(timestamp))
+    fun formatHistory(timestamp: Long): String = historyDateFormat.formatter().format(Date(timestamp))
 
     /** Format current date as weekday name (e.g. "Monday"). */
-    fun formatWeekday(): String = weekdayFormat.get().format(Date())
+    fun formatWeekday(): String = weekdayFormat.formatter().format(Date())
+
+    private fun ThreadLocal<SimpleDateFormat>.formatter(): SimpleDateFormat =
+        checkNotNull(get()) { "Date formatter was not initialized." }
 }

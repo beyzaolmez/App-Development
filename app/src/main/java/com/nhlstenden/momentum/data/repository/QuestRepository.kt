@@ -1,5 +1,6 @@
 package com.nhlstenden.momentum.data.repository
 
+import android.util.Log
 import com.nhlstenden.momentum.data.model.Quest
 import com.nhlstenden.momentum.data.model.QuestCategory
 import com.nhlstenden.momentum.data.model.QuestDifficulty
@@ -424,6 +425,10 @@ class PredefinedQuestRepository : QuestRepository {
         )
     )
 
+    init {
+        quests.requireValidQuestContent()
+    }
+
     override fun getQuests(): List<Quest> = quests
 
     override fun getQuestById(id: String): Quest? = quests.firstOrNull { it.id == id }
@@ -450,10 +455,12 @@ class FirestoreQuestRepository(
     override fun getQuestById(id: String): Quest? = null
 
     suspend fun seedQuests(quests: List<Quest>) {
+        quests.requireValidQuestContent()
+
         val batch = firestore.batch()
         quests.forEach { quest ->
             val doc = firestore.collection("quests").document(quest.id)
-            batch.set(doc, quest.toQuestFirestoreMap())
+            batch.set(doc, quest.toQuestSeedMap())
         }
         batch.commit().await()
     }
@@ -495,10 +502,15 @@ class FirestoreQuestRepository(
 }
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
-    val title = getString("title") ?: return null
-    val description = getString("description") ?: return null
-    val category = getString("category").toQuestCategory()
-    val difficulty = getString("difficulty").toQuestDifficulty()
+    fun skip(reason: String): Quest? {
+        Log.w(QUEST_REPOSITORY_TAG, "Skipping quest document '$id': $reason")
+        return null
+    }
+
+    val title = getString("title") ?: return skip("missing title")
+    val description = getString("description") ?: return skip("missing description")
+    val category = getString("category").toQuestCategory() ?: return skip("invalid category")
+    val difficulty = getString("difficulty").toQuestDifficulty() ?: return skip("invalid difficulty")
     val estimatedMinutes = getLong("estimatedMinutes")?.toInt() ?: 5
     val xp = getLong("xp")?.toInt() ?: 0
     val steps = get("steps").toStringList()
@@ -507,7 +519,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
     val targetProgress = getLong("targetProgress")?.toInt()?.coerceAtLeast(1) ?: 1
     val progressUnit = getString("progressUnit")?.takeIf { it.isNotBlank() } ?: "completion"
 
-    return Quest(
+    val quest = Quest(
         id = id,
         title = title,
         description = description,
@@ -521,6 +533,13 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuest(): Quest? {
         targetProgress = targetProgress,
         progressUnit = progressUnit
     )
+
+    val validationIssues = QuestContentValidator.validate(quest)
+    return if (validationIssues.isEmpty()) {
+        quest
+    } else {
+        skip(validationIssues.joinToString())
+    }
 }
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toQuestState(): QuestState? {
@@ -543,7 +562,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toQuestState(): Quest
     )
 }
 
-private fun Quest.toQuestFirestoreMap(): Map<String, Any?> = mapOf(
+internal fun Quest.toQuestSeedMap(): Map<String, Any?> = mapOf(
     "title" to title,
     "description" to description,
     "category" to category.name,
@@ -585,13 +604,11 @@ private fun Any?.toStringList(): List<String> =
         ?.mapNotNull { it as? String }
         .orEmpty()
 
-private fun String?.toQuestCategory(): QuestCategory =
+private fun String?.toQuestCategory(): QuestCategory? =
     enumValues<QuestCategory>().firstOrNull { it.name.equals(this, ignoreCase = true) }
-        ?: QuestCategory.Wellbeing
 
-private fun String?.toQuestDifficulty(): QuestDifficulty =
+private fun String?.toQuestDifficulty(): QuestDifficulty? =
     enumValues<QuestDifficulty>().firstOrNull { it.name.equals(this, ignoreCase = true) }
-        ?: QuestDifficulty.Easy
 
 private fun String?.toQuestGoalType(): QuestGoalType =
     enumValues<QuestGoalType>().firstOrNull { it.name.equals(this, ignoreCase = true) }
@@ -612,3 +629,5 @@ private val QuestStatus.persistenceRank: Int
         QuestStatus.Skipped -> 2
         QuestStatus.Completed -> 3
     }
+
+private const val QUEST_REPOSITORY_TAG = "QuestRepository"

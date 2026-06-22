@@ -2,8 +2,11 @@ package com.nhlstenden.momentum.data.repository
 
 import com.nhlstenden.momentum.data.model.LongTermQuestProgress
 import com.nhlstenden.momentum.data.model.QuestCategory
+import com.nhlstenden.momentum.data.model.QuestDifficulty
 import com.nhlstenden.momentum.data.model.QuestGoalType
 import com.nhlstenden.momentum.data.model.QuestStatus
+import java.nio.file.Files
+import java.nio.file.Paths
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -13,6 +16,89 @@ import org.junit.Test
 class PredefinedQuestRepositoryTest {
 
     private val repository = PredefinedQuestRepository()
+
+    @Test
+    fun predefinedQuestsPassFirebaseContentValidation() {
+        val validationIssues = QuestContentValidator.validateAll(repository.getQuests())
+
+        assertTrue(validationIssues.joinToString(separator = "\n"), validationIssues.isEmpty())
+    }
+
+    @Test
+    fun firebaseSeedPayloadMatchesQuestModelFields() {
+        val expectedKeys = setOf(
+            "title",
+            "description",
+            "category",
+            "difficulty",
+            "estimatedMinutes",
+            "xp",
+            "steps",
+            "journalPrompt",
+            "goalType",
+            "targetProgress",
+            "progressUnit",
+            "isActive"
+        )
+
+        repository.getQuests().forEach { quest ->
+            val payload = quest.toQuestSeedMap()
+
+            assertEquals(expectedKeys, payload.keys)
+            assertEquals(quest.title, payload["title"])
+            assertEquals(quest.description, payload["description"])
+            assertEquals(quest.category.name, payload["category"])
+            assertEquals(quest.difficulty.name, payload["difficulty"])
+            assertEquals(quest.estimatedMinutes, payload["estimatedMinutes"])
+            assertEquals(quest.xp, payload["xp"])
+            assertEquals(quest.steps, payload["steps"])
+            assertEquals(quest.journalPrompt, payload["journalPrompt"])
+            assertEquals(quest.goalType.name, payload["goalType"])
+            assertEquals(quest.targetProgress, payload["targetProgress"])
+            assertEquals(quest.progressUnit, payload["progressUnit"])
+            assertEquals(true, payload["isActive"])
+        }
+    }
+
+    @Test
+    fun questSeedExporterProducesFirebaseQuestArtifact() {
+        val seedJson = QuestSeedExporter.toJson(repository.getQuests())
+        val outputPath = Paths.get(
+            "build",
+            "reports",
+            "quest-seed",
+            "firebase-quests.seed.json"
+        )
+
+        Files.createDirectories(outputPath.parent)
+        Files.write(outputPath, seedJson.toByteArray())
+
+        assertTrue(seedJson.startsWith("{\"collection\":\"quests\""))
+        assertTrue(seedJson.contains("\"id\":\"workout-session\""))
+        assertTrue(seedJson.contains("\"goalType\":\"LongTerm\""))
+        assertTrue(seedJson.contains("\"progressUnit\":\"workouts\""))
+        assertTrue(Files.exists(outputPath))
+    }
+
+    @Test
+    fun validationRejectsIncompleteLongTermQuestFields() {
+        val invalidQuest = repository.getQuestById("workout-streak")!!.copy(
+            targetProgress = 1,
+            progressUnit = "completion"
+        )
+
+        val validationIssues = QuestContentValidator.validate(invalidQuest)
+
+        assertTrue(validationIssues.any { it.contains("targetProgress") })
+        assertTrue(validationIssues.any { it.contains("progressUnit") })
+    }
+
+    @Test
+    fun predefinedQuestsCoverAllSupportedCategories() {
+        val categories = repository.getQuests().map { it.category }.toSet()
+
+        assertEquals(QuestCategory.entries.toSet(), categories)
+    }
 
     @Test
     fun predefinedQuestsIncludeWorkoutContent() {
@@ -46,6 +132,16 @@ class PredefinedQuestRepositoryTest {
 
         assertEquals(workoutQuestIds.size, workoutQuests.size)
         assertTrue(workoutQuests.all { it.category == QuestCategory.Movement })
+    }
+
+    @Test
+    fun predefinedQuestEnumsAreRepresentedAsFirebaseNames() {
+        val quest = repository.getQuestById("chapter-focus")!!
+        val payload = quest.toQuestSeedMap()
+
+        assertEquals(QuestCategory.Academic.name, payload["category"])
+        assertEquals(QuestDifficulty.Medium.name, payload["difficulty"])
+        assertEquals(QuestGoalType.Daily.name, payload["goalType"])
     }
 
     @Test

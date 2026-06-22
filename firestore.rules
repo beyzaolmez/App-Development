@@ -34,6 +34,60 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
+    function validQuestStatus() {
+      return request.resource.data.status in ['Available', 'Active', 'Completed', 'Skipped'];
+    }
+
+    function validQuestStateShape(questStateId) {
+      return request.resource.data.keys().hasOnly([
+          'questStateId',
+          'questId',
+          'date',
+          'status',
+          'isDailyAssigned',
+          'startedAt',
+          'completedAt',
+          'skippedAt',
+          'currentProgress',
+          'targetProgress',
+          'progressUnit',
+          'lastProgressUpdatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'questStateId',
+          'questId',
+          'date',
+          'status',
+          'isDailyAssigned',
+          'startedAt',
+          'completedAt',
+          'skippedAt',
+          'currentProgress',
+          'targetProgress',
+          'progressUnit',
+          'lastProgressUpdatedAt'
+        ])
+        && request.resource.data.questStateId is string
+        && request.resource.data.questStateId == questStateId
+        && request.resource.data.questId is string
+        && request.resource.data.questId.size() > 0
+        && request.resource.data.date is string
+        && request.resource.data.date.size() == 10
+        && validQuestStatus()
+        && request.resource.data.isDailyAssigned is bool
+        && request.resource.data.currentProgress is int
+        && request.resource.data.currentProgress >= 0
+        && request.resource.data.targetProgress is int
+        && request.resource.data.targetProgress >= 1
+        && request.resource.data.currentProgress <= request.resource.data.targetProgress
+        && request.resource.data.progressUnit is string
+        && request.resource.data.progressUnit.size() > 0
+        && (request.resource.data.startedAt is int || request.resource.data.startedAt == null)
+        && (request.resource.data.completedAt is int || request.resource.data.completedAt == null)
+        && (request.resource.data.skippedAt is int || request.resource.data.skippedAt == null)
+        && (request.resource.data.lastProgressUpdatedAt is int || request.resource.data.lastProgressUpdatedAt == null);
+    }
+
     match /users/{userId} {
       allow get: if signedIn();
 
@@ -46,7 +100,9 @@ service cloud.firestore {
       allow delete: if isSelf(userId);
 
       match /questStates/{questStateId} {
-        allow get, list, create, update, delete: if isSelf(userId);
+        allow get, list, delete: if isSelf(userId);
+        allow create, update: if isSelf(userId)
+          && validQuestStateShape(questStateId);
       }
 
       match /journalEntries/{journalEntryId} {

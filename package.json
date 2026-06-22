@@ -1,0 +1,13 @@
+{
+  "name": "momentum-admin-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed:quests": "node scripts/seed-firestore-quests.mjs",
+    "seed:quests:dry-run": "node scripts/seed-firestore-quests.mjs --dry-run"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
