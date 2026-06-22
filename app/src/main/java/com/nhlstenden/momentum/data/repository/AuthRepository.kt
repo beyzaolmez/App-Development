@@ -143,43 +143,66 @@ class AuthRepository(
      * Removes top-level Firestore documents that reference this user: feedback and
      * quest suggestions the user authored, plus ending any shared streaks.
      *
-     * All writes are applied in a single atomic [com.google.firebase.firestore.WriteBatch]
-     * so a partial failure cannot leave the user's data half-removed.
+     * Writes are split into chunked [com.google.firebase.firestore.WriteBatch]es so a
+     * user with more than [BATCH_LIMIT] linked documents can still be cleaned up (a
+     * single batch is capped at 500 operations and would otherwise throw). Every
+     * operation is idempotent — ending a streak and deleting feedback can be safely
+     * re-run — so cleanup can resume after a transient failure without corruption.
      *
      * Shared streaks are *ended* (status -> Declined) rather than deleted, because the
      * document is shared with another member whose history must not be destroyed.
      */
     private suspend fun deleteUserLinkedData(uid: String) {
-        val batch = firestore.batch()
-
         // Shared streaks where the user is a member: end them non-destructively.
-        firestore.collection("sharedStreaks")
+        val streakRefs = firestore.collection("sharedStreaks")
             .whereArrayContains("memberIds", uid)
             .get()
             .await()
             .documents
-            .forEach { batch.update(it.reference, "status", SharedStreakStatus.Declined.name) }
+            .map { it.reference }
+        commitInChunks(streakRefs) { batch, reference ->
+            batch.update(reference, "status", SharedStreakStatus.Declined.name)
+        }
 
         // Feedback authored by the user.
-        firestore.collection("feedback")
+        val feedbackRefs = firestore.collection("feedback")
             .whereEqualTo("uid", uid)
             .get()
             .await()
             .documents
-            .forEach { batch.delete(it.reference) }
+            .map { it.reference }
+        commitInChunks(feedbackRefs) { batch, reference -> batch.delete(reference) }
 
         // Quest suggestions authored by the user.
-        firestore.collection("quest_suggestions")
+        val suggestionRefs = firestore.collection("quest_suggestions")
             .whereEqualTo("uid", uid)
             .get()
             .await()
             .documents
-            .forEach { batch.delete(it.reference) }
+            .map { it.reference }
+        commitInChunks(suggestionRefs) { batch, reference -> batch.delete(reference) }
+    }
 
-        batch.commit().await()
+    /**
+     * Applies [operation] to each reference in batches no larger than [BATCH_LIMIT],
+     * committing each batch before starting the next so we never exceed Firestore's
+     * 500-operations-per-batch limit.
+     */
+    private suspend fun commitInChunks(
+        references: List<com.google.firebase.firestore.DocumentReference>,
+        operation: (com.google.firebase.firestore.WriteBatch, com.google.firebase.firestore.DocumentReference) -> Unit
+    ) {
+        references.chunked(BATCH_LIMIT).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { reference -> operation(batch, reference) }
+            batch.commit().await()
+        }
     }
 
     private companion object {
         const val TAG = "AuthRepository"
+
+        // Firestore allows at most 500 writes per batch; stay safely under it.
+        const val BATCH_LIMIT = 450
     }
 }

@@ -44,6 +44,30 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
+    // The one-time transition from Pending to Active. Activation is allowed to seed
+    // both members' completion dates at once (so a streak whose members both already
+    // finished today can advance), because validSharedStreakProgress still caps the
+    // count at +1 for that single write.
+    function isSharedStreakActivation() {
+      return resource.data.status == 'Pending'
+        && request.resource.data.status == 'Active';
+    }
+
+    // Outside of activation, a member may only add/modify/remove THEIR OWN entry in
+    // the per-member completion and like maps. This stops one member from forging the
+    // other's completion date (which would let them advance the shared streak alone)
+    // or tampering with the other's liked quests.
+    function onlyOwnSharedStreakDataChanged() {
+      return request.resource.data.lastCompletionDates
+          .diff(resource.data.lastCompletionDates)
+          .affectedKeys()
+          .hasOnly([request.auth.uid])
+        && request.resource.data.likedQuestIdsByMember
+          .diff(resource.data.likedQuestIdsByMember)
+          .affectedKeys()
+          .hasOnly([request.auth.uid]);
+    }
+
     match /users/{userId} {
       allow get: if signedIn();
 
@@ -90,7 +114,8 @@ service cloud.firestore {
         && hasTwoSharedStreakMembers()
         && sharedStreakMembersDoNotChange()
         && validSharedStreakStatus()
-        && validSharedStreakProgress();
+        && validSharedStreakProgress()
+        && (isSharedStreakActivation() || onlyOwnSharedStreakDataChanged());
 
       // A member may delete the shared streak, e.g. when deleting their account.
       allow delete: if isSharedStreakMember();

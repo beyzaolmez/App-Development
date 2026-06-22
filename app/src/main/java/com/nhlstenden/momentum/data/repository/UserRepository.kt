@@ -197,22 +197,31 @@ class FirestoreUserRepository(
     }
 
     override suspend fun deleteUser(uid: String) {
-        val batch = firestore.batch()
         val userDoc = firestore.collection("users").document(uid)
 
-        // Delete subcollections first
+        // Collect every subcollection document, then the user document itself.
         val subcollections = listOf("questStates", "questFeedback", "journalEntries")
-        subcollections.forEach { subcollection ->
-            val snapshot = userDoc.collection(subcollection).get().await()
-            snapshot.documents.forEach { doc ->
-                batch.delete(doc.reference)
+        val references = buildList {
+            subcollections.forEach { subcollection ->
+                userDoc.collection(subcollection).get().await().documents
+                    .forEach { add(it.reference) }
             }
+            add(userDoc)
         }
 
-        // Delete the user document itself
-        batch.delete(userDoc)
+        // Commit in chunks so a user with many states/entries cannot exceed
+        // Firestore's 500-operations-per-batch limit. All deletes are idempotent,
+        // so a retry after a transient failure is safe.
+        references.chunked(BATCH_LIMIT).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { batch.delete(it) }
+            batch.commit().await()
+        }
+    }
 
-        batch.commit().await()
+    private companion object {
+        // Firestore allows at most 500 writes per batch; stay safely under it.
+        const val BATCH_LIMIT = 450
     }
 }
 
