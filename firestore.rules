@@ -117,8 +117,11 @@ service cloud.firestore {
         && validSharedStreakProgress()
         && (isSharedStreakActivation() || onlyOwnSharedStreakDataChanged());
 
-      // A member may delete the shared streak, e.g. when deleting their account.
-      allow delete: if isSharedStreakMember();
+      // The inviter may cancel a pending invitation. Active/declined streaks are
+      // kept as shared history; account deletion ends them via status update.
+      allow delete: if isSharedStreakMember()
+        && resource.data.status == 'Pending'
+        && resource.data.invitedByUid == request.auth.uid;
     }
 
     match /quests/{questId} {
