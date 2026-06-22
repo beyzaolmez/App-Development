@@ -12,7 +12,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
-    private val authRepository: AuthRepository = AuthRepository()
+    private val authRepository: AuthRepository = AuthRepository(),
+    // Injected so email validation can be unit-tested off-device. The default keeps
+    // production behaviour identical (Android's framework email matcher).
+    private val isEmailValid: (String) -> Boolean = { email ->
+        Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -106,7 +111,7 @@ class AuthViewModel(
 
     private fun validateEmail(email: String): String? = when {
         email.trim().isEmpty() -> "Email is required."
-        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Enter a valid email address."
+        !isEmailValid(email.trim()) -> "Enter a valid email address."
         else -> null
     }
 
