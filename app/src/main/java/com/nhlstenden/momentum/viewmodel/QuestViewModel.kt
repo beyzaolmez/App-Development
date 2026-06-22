@@ -20,6 +20,7 @@ import com.nhlstenden.momentum.data.model.ProgressOverview
 import com.nhlstenden.momentum.data.model.ProgressOverviewCalculator
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
+import com.nhlstenden.momentum.data.model.persistenceRank
 import com.nhlstenden.momentum.data.model.User
 import com.nhlstenden.momentum.data.model.UserProgress
 import com.nhlstenden.momentum.data.repository.FirestoreReflectionRepository
@@ -435,6 +436,10 @@ class QuestViewModel(
                     )
                 }
 
+                loadedQuests to loadedData
+            }.onSuccess { (loadedQuests, loadedData) ->
+                // State commit lives in onSuccess so a failure here can never fall
+                // through to the demo fallback and clobber the user's real data.
                 feedbackByQuestId = loadedData.feedback.associate { it.questId to it.feedbackType }
                 feedbackScoreByCategory = loadedData.feedback.toCategoryScores()
                 recentReflections = loadedData.reflections
@@ -533,7 +538,12 @@ class QuestViewModel(
                         reflectionRepository.saveReflection(uid, entry)
                     }
                 }.onFailure {
-                    errorMessage = "Quest completed. Your reflection is saved and will sync once you're back online."
+                    // Roll back the optimistic markers so the user can retry the
+                    // reflection instead of being permanently blocked by the
+                    // duplicate guard with no entry actually persisted.
+                    reflectedQuestIds = reflectedQuestIds - id
+                    recentReflections = recentReflections.filterNot { it.questId == id }
+                    errorMessage = "Quest completed, but we couldn't save your reflection. Please try again."
                 }
             }
             completeQuest(id)
@@ -810,14 +820,6 @@ private fun preferredProgress(
                 .thenBy { it.completedQuestCount }
                 .thenBy { it.currentStreak }
         )
-
-private val QuestStatus.persistenceRank: Int
-    get() = when (this) {
-        QuestStatus.Available -> 0
-        QuestStatus.Active -> 1
-        QuestStatus.Skipped -> 2
-        QuestStatus.Completed -> 3
-    }
 
 private fun List<QuestFeedback>.toCategoryScores(): Map<QuestCategory, Int> =
     groupBy { it.category }
