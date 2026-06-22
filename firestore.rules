@@ -27,6 +27,16 @@ service cloud.firestore {
         && request.resource.data.memberIds.size() == 2;
     }
 
+    // The shared streak count must stay a non-negative integer and can only grow
+    // by at most one per write (a single shared day advances it by one), or reset
+    // downward (streak broken / re-activated). This stops a member from arbitrarily
+    // inflating the shared count.
+    function validSharedStreakProgress() {
+      return request.resource.data.currentStreak is int
+        && request.resource.data.currentStreak >= 0
+        && request.resource.data.currentStreak <= resource.data.currentStreak + 1;
+    }
+
     function sharedStreakMembersDoNotChange() {
       return request.resource.data.memberIds == resource.data.memberIds
         && request.resource.data.memberNames == resource.data.memberNames
@@ -79,7 +89,8 @@ service cloud.firestore {
         && isSharedStreakMemberAfterWrite()
         && hasTwoSharedStreakMembers()
         && sharedStreakMembersDoNotChange()
-        && validSharedStreakStatus();
+        && validSharedStreakStatus()
+        && validSharedStreakProgress();
 
       // A member may delete the shared streak, e.g. when deleting their account.
       allow delete: if isSharedStreakMember();
