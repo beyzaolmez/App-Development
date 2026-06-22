@@ -326,7 +326,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toSharedStreak(): Sha
         ?.toMap()
         .orEmpty()
     val status = (getString("status"))
-        ?.let { name -> SharedStreakStatus.values().firstOrNull { it.name == name } }
+        ?.let { name -> SharedStreakStatus.entries.firstOrNull { it.name == name } }
         ?: SharedStreakStatus.Pending
 
     return SharedStreak(

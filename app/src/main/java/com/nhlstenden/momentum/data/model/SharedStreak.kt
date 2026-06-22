@@ -67,24 +67,32 @@ object SharedStreakLogic {
 
     private val datePattern = Regex("^\\d{4}-\\d{2}-\\d{2}$")
 
+    // Single place that resolves the thread-local formatter, keeping the non-null
+    // handling here instead of repeating `!!` at every call site.
+    private fun formatter(): SimpleDateFormat =
+        dateFormat.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+        }
+
     /** Validates that [date] is in "yyyy-MM-dd" format and represents a real calendar date. */
     fun isValidDate(date: String): Boolean {
         if (!datePattern.matches(date)) return false
-        return runCatching { dateFormat.get()!!.parse(date) }.isSuccess
+        return runCatching { formatter().parse(date) }.isSuccess
     }
 
     /** Returns today's date in UTC ("yyyy-MM-dd") for consistent cross-timezone streak calculation. */
-    fun today(): String = dateFormat.get()!!.format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
+    fun today(): String = formatter().format(Calendar.getInstance(TimeZone.getTimeZone("UTC")).time)
 
     /** The calendar day immediately before [date] (expects "yyyy-MM-dd"). Returns [date] if invalid. */
     fun previousDay(date: String): String {
         if (!isValidDate(date)) return date
-        val parsed = dateFormat.get()!!.parse(date) ?: return date
+        val parsed = formatter().parse(date) ?: return date
         val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             time = parsed
             add(Calendar.DAY_OF_YEAR, -1)
         }
-        return dateFormat.get()!!.format(calendar.time)
+        return formatter().format(calendar.time)
     }
 
     /**

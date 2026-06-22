@@ -30,9 +30,16 @@ object FeedbackStore {
             onError(IllegalStateException("Sign in to send feedback."))
             return
         }
+        val trimmedMessage = message.trim()
+        if (trimmedMessage.isEmpty()) {
+            onError(IllegalArgumentException("Write a short message before sending feedback."))
+            return
+        }
+
         val timestamp = MomentumDateFormat.formatIsoDateTime(Date())
         val data = hashMapOf(
-            "message" to message.trim(),
+            // Cap the length so a single document can't grow unbounded.
+            "message" to trimmedMessage.take(MAX_MESSAGE_LENGTH),
             "timestamp" to timestamp,
             "uid" to uid
         )
@@ -40,4 +47,6 @@ object FeedbackStore {
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onError(e) }
     }
+
+    private const val MAX_MESSAGE_LENGTH = 2_000
 }

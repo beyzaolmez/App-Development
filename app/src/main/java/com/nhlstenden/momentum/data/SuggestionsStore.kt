@@ -28,11 +28,18 @@ object SuggestionsStore {
             onError(IllegalStateException("Sign in to suggest a quest."))
             return
         }
+        val trimmedTitle = title.trim()
+        if (trimmedTitle.isEmpty()) {
+            onError(IllegalArgumentException("Give your quest suggestion a title."))
+            return
+        }
+
         val timestamp = MomentumDateFormat.formatIsoDateTime(Date())
         val data = hashMapOf(
-            "title" to title.trim(),
-            "category" to category.trim(),
-            "notes" to notes.trim(),
+            // Cap each field so a single document can't grow unbounded.
+            "title" to trimmedTitle.take(MAX_TITLE_LENGTH),
+            "category" to category.trim().take(MAX_CATEGORY_LENGTH),
+            "notes" to notes.trim().take(MAX_NOTES_LENGTH),
             "timestamp" to timestamp,
             "uid" to uid
         )
@@ -40,4 +47,8 @@ object SuggestionsStore {
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e -> onError(e) }
     }
+
+    private const val MAX_TITLE_LENGTH = 120
+    private const val MAX_CATEGORY_LENGTH = 60
+    private const val MAX_NOTES_LENGTH = 1_000
 }

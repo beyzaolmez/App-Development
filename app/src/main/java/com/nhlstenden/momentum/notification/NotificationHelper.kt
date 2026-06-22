@@ -31,7 +31,7 @@ object NotificationHelper {
                 vibrationPattern = longArrayOf(0, 250, 100, 250)
             }
             val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager?.createNotificationChannel(channel)
         }
     }
 

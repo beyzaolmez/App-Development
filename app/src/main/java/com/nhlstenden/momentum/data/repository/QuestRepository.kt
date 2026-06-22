@@ -6,7 +6,6 @@ import com.nhlstenden.momentum.data.model.QuestDifficulty
 import com.nhlstenden.momentum.data.model.QuestGoalType
 import com.nhlstenden.momentum.data.model.QuestState
 import com.nhlstenden.momentum.data.model.QuestStatus
-import com.nhlstenden.momentum.data.model.persistenceRank
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -22,10 +21,7 @@ interface QuestRepository {
     suspend fun saveQuestState(uid: String, questState: QuestState)
 }
 
-class PredefinedQuestRepository : QuestCatalog, QuestRepository {
-    private val stateLock = Any()
-    private val questStatesByUser = mutableMapOf<String, List<QuestState>>()
-
+class PredefinedQuestRepository : QuestCatalog {
     private val quests = listOf(
         // ── Academic ──────────────────────────────────────────────────────────
         Quest(
@@ -434,20 +430,6 @@ class PredefinedQuestRepository : QuestCatalog, QuestRepository {
     override fun getQuests(): List<Quest> = quests
 
     override fun getQuestById(id: String): Quest? = quests.firstOrNull { it.id == id }
-
-    override suspend fun getQuestStates(uid: String): List<QuestState> =
-        synchronized(stateLock) { questStatesByUser[uid].orEmpty() }
-
-    override suspend fun saveQuestState(uid: String, questState: QuestState) =
-        synchronized(stateLock) {
-            val existingStates = questStatesByUser[uid].orEmpty()
-            val existingState = existingStates.firstOrNull { it.questStateId == questState.questStateId }
-            if (existingState != null && existingState.isMoreFinalThan(questState)) return@synchronized
-
-            questStatesByUser[uid] = existingStates
-                .filterNot { it.questStateId == questState.questStateId }
-                .plus(questState)
-        }
 }
 
 class FirestoreQuestRepository(
@@ -604,7 +586,3 @@ private fun String?.toQuestGoalType(): QuestGoalType =
 private fun String?.toQuestStatus(): QuestStatus =
     enumValues<QuestStatus>().firstOrNull { it.name.equals(this, ignoreCase = true) }
         ?: QuestStatus.Available
-
-private fun QuestState.isMoreFinalThan(other: QuestState): Boolean =
-    status.persistenceRank > other.status.persistenceRank ||
-        (status.persistenceRank == other.status.persistenceRank && currentProgress > other.currentProgress)
