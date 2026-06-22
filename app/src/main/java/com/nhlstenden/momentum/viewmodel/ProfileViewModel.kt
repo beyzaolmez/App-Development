@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuth.AuthStateListener
 import com.nhlstenden.momentum.data.repository.AuthRepository
 import com.nhlstenden.momentum.util.FriendlyErrorMessages
 import com.nhlstenden.momentum.util.toFriendlyAccountDeletionMessage
@@ -15,10 +16,22 @@ class ProfileViewModel(
     private val authRepository: AuthRepository = AuthRepository()
 ) : ViewModel() {
 
+    private val firebaseAuth = FirebaseAuth.getInstance()
+
     var displayName by mutableStateOf(
-        FirebaseAuth.getInstance().currentUser?.displayName.orEmpty()
+        firebaseAuth.currentUser?.displayName.orEmpty()
     )
         private set
+
+    // Keep displayName in sync with the current Firebase user so the value does
+    // not persist after sign out or when switching to a different account.
+    private val authStateListener = AuthStateListener { auth ->
+        displayName = auth.currentUser?.displayName.orEmpty()
+    }
+
+    init {
+        firebaseAuth.addAuthStateListener(authStateListener)
+    }
 
     var isSaving by mutableStateOf(false)
         private set
@@ -96,5 +109,10 @@ class ProfileViewModel(
     fun resetDeleteState() {
         deleteSuccess = false
         deleteError = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        firebaseAuth.removeAuthStateListener(authStateListener)
     }
 }
