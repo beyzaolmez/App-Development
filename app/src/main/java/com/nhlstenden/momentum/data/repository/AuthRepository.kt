@@ -1,9 +1,11 @@
 package com.nhlstenden.momentum.data.repository
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.nhlstenden.momentum.data.model.SharedStreakStatus
 import com.nhlstenden.momentum.data.model.User
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
@@ -17,7 +19,8 @@ class AuthRepository(
 
     suspend fun register(name: String, email: String, password: String) {
         val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
-        val firebaseUser = result.user ?: return
+        val firebaseUser = result.user
+            ?: throw IllegalStateException("Account creation returned no user")
 
         firebaseUser.updateProfile(
             UserProfileChangeRequest.Builder()
@@ -35,7 +38,7 @@ class AuthRepository(
                     )
                 )
             }
-        }
+        }.onFailure { Log.w(TAG, "register: failed to sync user profile; will retry on next sign-in", it) }
     }
 
     suspend fun ensureUserProfile(name: String? = null) {
@@ -70,7 +73,7 @@ class AuthRepository(
                     )
                 )
             }
-        }
+        }.onFailure { Log.w(TAG, "ensureUserProfile: profile sync failed", it) }
     }
 
     suspend fun updateDisplayName(name: String) {
@@ -87,7 +90,7 @@ class AuthRepository(
             withTimeout(5_000) {
                 userRepository.updateDisplayName(firebaseUser.uid, trimmed)
             }
-        }
+        }.onFailure { Log.w(TAG, "updateDisplayName: Firestore sync failed", it) }
     }
 
     suspend fun signIn(email: String, password: String) {
@@ -137,30 +140,46 @@ class AuthRepository(
     }
 
     /**
-     * Removes top-level Firestore documents that reference this user: shared
-     * streaks the user is a member of, and feedback / quest suggestions the
-     * user authored.
+     * Removes top-level Firestore documents that reference this user: feedback and
+     * quest suggestions the user authored, plus ending any shared streaks.
+     *
+     * All writes are applied in a single atomic [com.google.firebase.firestore.WriteBatch]
+     * so a partial failure cannot leave the user's data half-removed.
+     *
+     * Shared streaks are *ended* (status -> Declined) rather than deleted, because the
+     * document is shared with another member whose history must not be destroyed.
      */
     private suspend fun deleteUserLinkedData(uid: String) {
-        // Shared streaks where the user is a member (either participant).
-        val streaks = firestore.collection("sharedStreaks")
+        val batch = firestore.batch()
+
+        // Shared streaks where the user is a member: end them non-destructively.
+        firestore.collection("sharedStreaks")
             .whereArrayContains("memberIds", uid)
             .get()
             .await()
-        streaks.documents.forEach { it.reference.delete().await() }
+            .documents
+            .forEach { batch.update(it.reference, "status", SharedStreakStatus.Declined.name) }
 
         // Feedback authored by the user.
-        val feedback = firestore.collection("feedback")
+        firestore.collection("feedback")
             .whereEqualTo("uid", uid)
             .get()
             .await()
-        feedback.documents.forEach { it.reference.delete().await() }
+            .documents
+            .forEach { batch.delete(it.reference) }
 
         // Quest suggestions authored by the user.
-        val suggestions = firestore.collection("quest_suggestions")
+        firestore.collection("quest_suggestions")
             .whereEqualTo("uid", uid)
             .get()
             .await()
-        suggestions.documents.forEach { it.reference.delete().await() }
+            .documents
+            .forEach { batch.delete(it.reference) }
+
+        batch.commit().await()
+    }
+
+    private companion object {
+        const val TAG = "AuthRepository"
     }
 }
