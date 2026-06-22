@@ -16,7 +16,7 @@ import java.util.TimeZone
  *  • Declined — the invited user rejected the invitation.
  *
  * SimpleDateFormat + Calendar are used (instead of java.time) to stay compatible
- * with minSdk 24, matching [StreakStore] and the quest progress logic.
+ * with minSdk 24, matching the quest progress logic.
  * The formatter is wrapped in ThreadLocal because SimpleDateFormat is NOT thread-safe.
  */
 data class SharedStreak(

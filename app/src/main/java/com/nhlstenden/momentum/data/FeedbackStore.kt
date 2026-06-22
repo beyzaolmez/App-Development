@@ -22,11 +22,19 @@ object FeedbackStore {
         onSuccess: () -> Unit = {},
         onError: (Exception) -> Unit = {}
     ) {
+        // Security rules require uid == request.auth.uid, so an unauthenticated
+        // ("anonymous") write would always be rejected. Fail fast with a clear
+        // message instead of issuing a doomed request.
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            onError(IllegalStateException("Sign in to send feedback."))
+            return
+        }
         val timestamp = MomentumDateFormat.formatIsoDateTime(Date())
         val data = hashMapOf(
             "message" to message.trim(),
             "timestamp" to timestamp,
-            "uid" to (auth.currentUser?.uid ?: "anonymous")
+            "uid" to uid
         )
         collection.add(data)
             .addOnSuccessListener { onSuccess() }
