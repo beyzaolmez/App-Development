@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1700" viewBox="0 0 2400 1700">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 36px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .section-title { font: 700 19px Arial, sans-serif; fill: #334155; }
+      .section { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .collection { fill: #eff6ff; stroke: #2563eb; stroke-width: 2.2; rx: 10; }
+      .subcollection { fill: #ffffff; stroke: #334155; stroke-width: 2.1; rx: 10; }
+      .embedded { fill: #dbeafe; stroke: #2563eb; stroke-width: 2.2; rx: 10; }
+      .quest { fill: #ecfdf5; stroke: #059669; stroke-width: 2.2; rx: 10; }
+      .journal { fill: #fffbeb; stroke: #d97706; stroke-width: 2.2; rx: 10; }
+      .feedback { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 2.2; rx: 10; }
+      .social { fill: #f0fdfa; stroke: #0f766e; stroke-width: 2.2; rx: 10; }
+      .note-box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 12; }
+      .legend-box { fill: #ffffff; stroke: #94a3b8; stroke-width: 2; rx: 12; }
+      .header { font: 700 20px Arial, sans-serif; fill: #0f172a; }
+      .stereo { font: 400 13px Arial, sans-serif; fill: #64748b; }
+      .field { font: 400 14px Consolas, "Courier New", monospace; fill: #0f172a; }
+      .important { font: 700 14px Consolas, "Courier New", monospace; fill: #0f172a; }
+      .note-title { font: 700 15px Arial, sans-serif; fill: #0f172a; }
+      .note { font: 400 14px Arial, sans-serif; fill: #334155; }
+      .divider { stroke: #94a3b8; stroke-width: 1; }
+      .owns { stroke: #334155; stroke-width: 2.4; fill: none; }
+      .quest-ref { stroke: #059669; stroke-width: 2.2; fill: none; stroke-dasharray: 8 7; }
+      .user-ref { stroke: #0f766e; stroke-width: 2.2; fill: none; stroke-dasharray: 8 7; }
+      .utility-ref { stroke: #7c3aed; stroke-width: 2.2; fill: none; stroke-dasharray: 8 7; }
+      .label { font: 400 13px Arial, sans-serif; fill: #334155; }
+      .mult { font: 700 14px Arial, sans-serif; fill: #0f172a; }
+    </style>
+    <marker id="filledDiamond" markerWidth="15" markerHeight="15" refX="7.5" refY="7.5" orient="auto">
+      <path d="M7.5 0 L15 7.5 L7.5 15 L0 7.5 Z" fill="#334155" stroke="#334155" stroke-width="2"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#059669"/>
+    </marker>
+    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="2400" height="1700"/>
+  <text class="title" x="70" y="58">Momentum Firestore Data Model Diagram</text>
+  <text class="subtitle" x="70" y="88">Current code implementation - top-level collections, user subcollections, embedded objects, and logical references</text>
+
+  <!-- Top-level data area -->
+  <rect class="section" x="50" y="125" width="2300" height="1190"/>
+  <text class="section-title" x="80" y="158">Firestore Collections and Relationships</text>
+
+  <!-- quests -->
+  <rect class="quest" x="95" y="210" width="420" height="420"/>
+  <text class="stereo" x="245" y="236">&lt;&lt;collection&gt;&gt;</text>
+  <text class="header" x="278" y="263">quests</text>
+  <line class="divider" x1="95" y1="283" x2="515" y2="283"/>
+  <text class="important" x="119" y="312">id : String</text>
+  <text class="field" x="119" y="337">title : String</text>
+  <text class="field" x="119" y="362">description : String</text>
+  <text class="field" x="119" y="387">category : QuestCategory</text>
+  <text class="field" x="119" y="412">xp : Int</text>
+  <text class="field" x="119" y="437">difficulty : QuestDifficulty</text>
+  <text class="field" x="119" y="462">estimatedMinutes : Int</text>
+  <text class="field" x="119" y="487">steps : List&lt;String&gt;</text>
+  <text class="field" x="119" y="512">journalPrompt : String?</text>
+  <text class="field" x="119" y="537">goalType : QuestGoalType</text>
+  <text class="field" x="119" y="562">targetProgress : Int</text>
+  <text class="field" x="119" y="587">progressUnit : String</text>
+  <text class="field" x="119" y="612">isActive : Boolean</text>
+
+  <!-- users -->
+  <rect class="collection" x="760" y="210" width="420" height="305"/>
+  <text class="stereo" x="910" y="236">&lt;&lt;collection&gt;&gt;</text>
+  <text class="header" x="943" y="263">users</text>
+  <line class="divider" x1="760" y1="283" x2="1180" y2="283"/>
+  <text class="important" x="784" y="312">uid : String</text>
+  <text class="field" x="784" y="337">displayName : String</text>
+  <text class="field" x="784" y="362">email : String</text>
+  <text class="field" x="784" y="387">emailLowercase : String</text>
+  <text class="field" x="784" y="412">interests : List&lt;String&gt;</text>
+  <text class="field" x="784" y="437">notificationEnabled : Boolean</text>
+  <text class="field" x="784" y="462">onboardingCompleted : Boolean</text>
+  <text class="field" x="784" y="487">themePreference : String?</text>
+
+  <!-- UserProgress -->
+  <rect class="embedded" x="1280" y="245" width="430" height="230"/>
+  <text class="stereo" x="1425" y="271">&lt;&lt;embedded object&gt;&gt;</text>
+  <text class="header" x="1432" y="298">UserProgress</text>
+  <line class="divider" x1="1280" y1="318" x2="1710" y2="318"/>
+  <text class="field" x="1304" y="347">currentStreak : Int</text>
+  <text class="field" x="1304" y="372">completedQuestCount : Int</text>
+  <text class="field" x="1304" y="397">skippedQuestCount : Int</text>
+  <text class="field" x="1304" y="422">categoryCounts : Map&lt;String, Int&gt;</text>
+  <text class="field" x="1304" y="447">lastQuestCompletionDate : String?</text>
+
+  <!-- sharedStreaks -->
+  <rect class="social" x="1830" y="210" width="480" height="405"/>
+  <text class="stereo" x="1986" y="236">&lt;&lt;collection&gt;&gt;</text>
+  <text class="header" x="2007" y="263">sharedStreaks</text>
+  <line class="divider" x1="1830" y1="283" x2="2310" y2="283"/>
+  <text class="important" x="1854" y="312">id : String</text>
+  <text class="field" x="1854" y="337">memberIds : List&lt;String&gt;</text>
+  <text class="field" x="1854" y="362">memberNames : Map&lt;String, String&gt;</text>
+  <text class="field" x="1854" y="387">status : SharedStreakStatus</text>
+  <text class="field" x="1854" y="412">invitedByUid : String</text>
+  <text class="field" x="1854" y="437">currentStreak : Int</text>
+  <text class="field" x="1854" y="462">lastCompletionDates : Map&lt;String, String&gt;</text>
+  <text class="field" x="1854" y="487">likedQuestIdsByMember : Map&lt;String, List&lt;String&gt;&gt;</text>
+  <text class="field" x="1854" y="512">lastIncrementDate : String?</text>
+  <text class="field" x="1854" y="537">createdAt : Long</text>
+  <line class="divider" x1="1830" y1="558" x2="2310" y2="558"/>
+  <text class="field" x="1854" y="587">SharedStreakStatus: Pending | Active | Declined</text>
+
+  <!-- questStates -->
+  <rect class="subcollection" x="95" y="815" width="430" height="405"/>
+  <text class="stereo" x="229" y="841">&lt;&lt;subcollection&gt;&gt;</text>
+  <text class="header" x="161" y="868">users/{uid}/questStates</text>
+  <line class="divider" x1="95" y1="888" x2="525" y2="888"/>
+  <text class="important" x="119" y="917">questStateId : String</text>
+  <text class="field" x="119" y="942">questId : String</text>
+  <text class="field" x="119" y="967">date : String</text>
+  <text class="field" x="119" y="992">status : QuestStatus</text>
+  <text class="field" x="119" y="1017">isDailyAssigned : Boolean</text>
+  <text class="field" x="119" y="1042">startedAt : Long?</text>
+  <text class="field" x="119" y="1067">completedAt : Long?</text>
+  <text class="field" x="119" y="1092">skippedAt : Long?</text>
+  <text class="field" x="119" y="1117">currentProgress : Int</text>
+  <text class="field" x="119" y="1142">targetProgress : Int</text>
+  <text class="field" x="119" y="1167">progressUnit : String</text>
+  <text class="field" x="119" y="1192">lastProgressUpdatedAt : Long?</text>
+
+  <!-- journalEntries -->
+  <rect class="journal" x="630" y="830" width="410" height="275"/>
+  <text class="stereo" x="752" y="856">&lt;&lt;subcollection&gt;&gt;</text>
+  <text class="header" x="664" y="883">users/{uid}/journalEntries</text>
+  <line class="divider" x1="630" y1="903" x2="1040" y2="903"/>
+  <text class="important" x="654" y="932">journalEntryId : String</text>
+  <text class="field" x="654" y="957">questId : String</text>
+  <text class="field" x="654" y="982">promptChoice : String?</text>
+  <text class="field" x="654" y="1007">quickTake : String?</text>
+  <text class="field" x="654" y="1032">note : String?</text>
+  <text class="field" x="654" y="1057">isPrivate : Boolean</text>
+  <text class="field" x="654" y="1082">createdAt : Long</text>
+
+  <!-- questFeedback -->
+  <rect class="feedback" x="1145" y="830" width="405" height="250"/>
+  <text class="stereo" x="1265" y="856">&lt;&lt;subcollection&gt;&gt;</text>
+  <text class="header" x="1178" y="883">users/{uid}/questFeedback</text>
+  <line class="divider" x1="1145" y1="903" x2="1550" y2="903"/>
+  <text class="important" x="1169" y="932">feedbackId : String</text>
+  <text class="field" x="1169" y="957">questId : String</text>
+  <text class="field" x="1169" y="982">category : QuestCategory</text>
+  <text class="field" x="1169" y="1007">feedbackType : QuestFeedbackType</text>
+  <text class="field" x="1169" y="1032">createdAt : Long</text>
+
+  <!-- feedback -->
+  <rect class="feedback" x="1665" y="830" width="285" height="190"/>
+  <text class="stereo" x="1750" y="856">&lt;&lt;collection&gt;&gt;</text>
+  <text class="header" x="1769" y="883">feedback</text>
+  <line class="divider" x1="1665" y1="903" x2="1950" y2="903"/>
+  <text class="field" x="1689" y="932">message : String</text>
+  <text class="field" x="1689" y="957">timestamp : String</text>
+  <text class="field" x="1689" y="982">uid : String</text>
+
+  <!-- quest_suggestions -->
+  <rect class="feedback" x="2015" y="830" width="295" height="215"/>
+  <text class="stereo" x="2100" y="856">&lt;&lt;collection&gt;&gt;</text>
+  <text class="header" x="2078" y="883">quest_suggestions</text>
+  <line class="divider" x1="2015" y1="903" x2="2310" y2="903"/>
+  <text class="field" x="2039" y="932">title : String</text>
+  <text class="field" x="2039" y="957">category : String</text>
+  <text class="field" x="2039" y="982">notes : String</text>
+  <text class="field" x="2039" y="1007">timestamp : String</text>
+  <text class="field" x="2039" y="1032">uid : String</text>
+
+  <!-- Relationship lanes -->
+  <path class="owns" marker-start="url(#filledDiamond)" d="M1180 362 L1280 362"/>
+  <text class="mult" x="1200" y="344">1</text>
+  <text class="mult" x="1262" y="344">1</text>
+  <text class="label" x="1200" y="388">progress embedded in user</text>
+
+  <path class="owns" d="M840 515 L840 680 L250 680 L250 815"/>
+  <path class="owns" d="M970 515 L970 720 L760 720 L760 830"/>
+  <path class="owns" d="M1100 515 L1100 685 L1270 685 L1270 830"/>
+  <text class="label" x="552" y="666">users/{uid}/questStates</text>
+  <text class="label" x="785" y="740">users/{uid}/journalEntries</text>
+  <text class="label" x="1120" y="674">users/{uid}/questFeedback</text>
+  <text class="mult" x="812" y="543">1</text>
+  <text class="mult" x="982" y="543">1</text>
+  <text class="mult" x="1112" y="543">1</text>
+  <text class="mult" x="262" y="808">0..*</text>
+  <text class="mult" x="772" y="823">0..*</text>
+  <text class="mult" x="1282" y="823">0..*</text>
+
+  <path class="quest-ref" marker-end="url(#arrowGreen)" d="M305 630 L305 815"/>
+  <path class="quest-ref" marker-end="url(#arrowGreen)" d="M515 560 L590 560 L590 760 L835 760 L835 830"/>
+  <path class="quest-ref" marker-end="url(#arrowGreen)" d="M515 595 L565 595 L565 790 L1348 790 L1348 830"/>
+  <text class="label" x="350" y="675">questId references quests.id</text>
+  <text class="label" x="590" y="548">journalEntries.questId</text>
+  <text class="label" x="590" y="778">questFeedback.questId</text>
+
+  <path class="user-ref" marker-end="url(#arrowTeal)" d="M1830 412 L1765 412 L1765 640 L1180 640 L1180 440"/>
+  <text class="label" x="1420" y="628">sharedStreaks.memberIds and invitedByUid reference users.uid</text>
+
+  <path class="utility-ref" marker-end="url(#arrowPurple)" d="M1808 830 L1808 750 L1180 750 L1180 470"/>
+  <text class="label" x="1585" y="738">feedback.uid references users.uid</text>
+
+  <path class="utility-ref" marker-end="url(#arrowPurple)" d="M2163 830 L2163 725 L1210 725 L1210 487 L1180 487"/>
+  <text class="label" x="1888" y="714">quest_suggestions.uid references users.uid</text>
+
+  <!-- Notes -->
+  <rect class="legend-box" x="70" y="1370" width="510" height="210"/>
+  <text class="note-title" x="95" y="1400">Legend</text>
+  <rect class="collection" x="98" y="1417" width="34" height="20"/>
+  <text class="note" x="150" y="1433">Top-level collection</text>
+  <rect class="subcollection" x="98" y="1447" width="34" height="20"/>
+  <text class="note" x="150" y="1463">Subcollection under users/{uid}</text>
+  <rect class="embedded" x="98" y="1477" width="34" height="20"/>
+  <text class="note" x="150" y="1493">Embedded object, not a collection</text>
+  <line class="owns" x1="98" y1="1520" x2="132" y2="1520"/>
+  <text class="note" x="150" y="1525">Solid line = ownership / embedding</text>
+  <line class="quest-ref" x1="98" y1="1550" x2="132" y2="1550"/>
+  <text class="note" x="150" y="1555">Dashed green line = questId logical reference</text>
+
+  <rect class="note-box" x="620" y="1370" width="520" height="210"/>
+  <text class="note-title" x="645" y="1400">Firestore Note</text>
+  <text class="note" x="645" y="1430">UserProgress is embedded inside users documents.</text>
+  <text class="note" x="645" y="1455">questStates, journalEntries, and questFeedback are user subcollections.</text>
+  <text class="note" x="645" y="1480">quests is a top-level catalog collection.</text>
+  <text class="note" x="645" y="1505">Quest progress is persisted in questStates.</text>
+  <text class="note" x="645" y="1530">currentProgress and status are not stored as catalog quest fields.</text>
+
+  <rect class="note-box" x="1180" y="1370" width="560" height="210"/>
+  <text class="note-title" x="1205" y="1400">Social Note</text>
+  <text class="note" x="1205" y="1430">Social/shared streak functionality is implemented through sharedStreaks.</text>
+  <text class="note" x="1205" y="1455">Pending invites, active connections, declined invites, streak progress,</text>
+  <text class="note" x="1205" y="1480">and friend-liked quests are represented by status and embedded maps.</text>
+  <text class="note" x="1205" y="1505">SharedStreakStatus values: Pending, Active, Declined.</text>
+
+  <rect class="note-box" x="1780" y="1370" width="520" height="170"/>
+  <text class="note-title" x="1805" y="1400">Timestamp Note</text>
+  <text class="note" x="1805" y="1430">Most app timestamps are Long values.</text>
+  <text class="note" x="1805" y="1455">feedback and quest_suggestions use formatted timestamp strings.</text>
+  <text class="note" x="1805" y="1480">Quest and streak dates use yyyy-MM-dd strings.</text>
+
+  <text class="subtitle" x="70" y="1640">Excluded: relational FK constraints, GPS, health tracking, AI-generated quests, chat, real-time feeds, advanced gamification, and advanced offline sync.</text>
+</svg>
