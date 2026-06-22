@@ -59,7 +59,7 @@ fun ProfileScreen(
     onSignOut: () -> Unit = {},
     isDeletingAccount: Boolean = false,
     deleteAccountError: String? = null,
-    onDeleteAccount: () -> Unit = {}
+    onDeleteAccount: (String) -> Unit = { _ -> }
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
@@ -215,9 +215,9 @@ fun ProfileScreen(
 
         if (showDeleteConfirmation) {
             DeleteAccountDialog(
-                onConfirm = {
+                onConfirm = { password ->
                     showDeleteConfirmation = false
-                    onDeleteAccount()
+                    onDeleteAccount(password)
                 },
                 onDismiss = { showDeleteConfirmation = false }
             )
@@ -280,22 +280,33 @@ private fun ThemeOptionRow(
 
 @Composable
 private fun DeleteAccountDialog(
-    onConfirm: () -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var password by remember { mutableStateOf("") }
+
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete your account?") },
         text = {
-            Text(
-                "This will permanently delete your account and all your data. " +
-                "This action cannot be undone."
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "This will permanently delete your account and all your data. " +
+                        "This action cannot be undone."
+                )
+                MomentumTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    placeholder = "Password",
+                    isPassword = true
+                )
+            }
         },
         confirmButton = {
             MomentumPrimaryButton(
                 text = "Delete",
-                onClick = onConfirm
+                onClick = { onConfirm(password) },
+                enabled = password.isNotBlank()
             )
         },
         dismissButton = {

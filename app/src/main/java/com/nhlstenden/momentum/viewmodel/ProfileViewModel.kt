@@ -66,13 +66,18 @@ class ProfileViewModel(
      * On success, [deleteSuccess] will be true and the UI should navigate to login.
      * On failure, [deleteError] will contain an error message.
      */
-    fun deleteAccount() {
+    fun deleteAccount(password: String) {
+        if (password.isBlank()) {
+            deleteError = "Enter your password to delete your account."
+            return
+        }
+
         viewModelScope.launch {
             isDeleting = true
             deleteError = null
             deleteSuccess = false
 
-            authRepository.deleteAccount()
+            authRepository.deleteAccount(password)
                 .onSuccess {
                     deleteSuccess = true
                     isDeleting = false

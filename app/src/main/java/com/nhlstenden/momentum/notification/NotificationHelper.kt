@@ -1,5 +1,6 @@
 package com.nhlstenden.momentum.notification
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -34,6 +35,7 @@ object NotificationHelper {
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun showQuestNotification(context: Context, questTitle: String) {
         if (!hasNotificationPermission(context)) return
 

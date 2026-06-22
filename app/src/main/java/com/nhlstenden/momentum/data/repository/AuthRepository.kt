@@ -1,6 +1,7 @@
 package com.nhlstenden.momentum.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.nhlstenden.momentum.data.model.User
@@ -106,25 +107,31 @@ class AuthRepository(
      * Deletes the current user's account from Firebase Auth and Firestore.
      *
      * Cleanup order (all while still authenticated, since the rules require it):
-     *  1. Removal of user-linked top-level data (shared streaks, feedback,
+     *  1. Reauthenticate, so Firebase Auth does not reject the final account
+     *     deletion after Firestore data has already been removed.
+     *  2. Removal of user-linked top-level data (shared streaks, feedback,
      *     quest suggestions).
-     *  2. The user document and its private subcollections.
-     *  3. The Firebase Auth user, last, so the account can no longer sign in.
+     *  3. The user document and its private subcollections.
+     *  4. The Firebase Auth user, last, so the account can no longer sign in.
      *
      * Returns Result.success(Unit) on success, Result.failure(exception) on error.
      */
-    suspend fun deleteAccount(): Result<Unit> {
+    suspend fun deleteAccount(password: String): Result<Unit> {
         val user = firebaseAuth.currentUser ?: return Result.failure(IllegalStateException("No user signed in"))
+        val email = user.email ?: return Result.failure(IllegalStateException("No email found for signed-in user"))
         val uid = user.uid
 
         return runCatching {
-            // 1. Cleanup top-level data linked to this user.
+            val credential = EmailAuthProvider.getCredential(email, password)
+            user.reauthenticate(credential).await()
+
+            // 2. Cleanup top-level data linked to this user.
             deleteUserLinkedData(uid)
 
-            // 2. Delete the user document and its private subcollections.
+            // 3. Delete the user document and its private subcollections.
             userRepository.deleteUser(uid)
 
-            // 3. Delete the Firebase Auth user last.
+            // 4. Delete the Firebase Auth user last.
             user.delete().await()
         }
     }

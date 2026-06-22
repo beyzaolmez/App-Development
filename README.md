@@ -9,6 +9,7 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Login** — Sign in with email and password
 - **Session Persistence** — Firebase session survives app restarts; returning users land directly on Home
 - **Sign Out** — Fully clears Firebase session token
+- **Account Deletion** — Reauthenticates with the user's password, removes user-linked Firestore data, and then deletes the Firebase Auth account
 - **Firebase Auth** — Secure authentication with error handling and validation
 - **Input Validation** — Real-time validation with user-friendly error messages
 
@@ -36,13 +37,23 @@ A gentle productivity app for students that turns daily tasks into manageable si
 - **Category Balance** — Visual breakdown of quest categories completed
 - **Push Notifications** — Local quest reminder notifications with runtime permission request (Android 13+)
 
+### Friends, Feedback & Data Sync
+- **Shared Streaks** — Firestore-backed friend streaks with invite, accept, decline, and shared quest activity
+- **Friend Quest Board** — Shows liked quests from active shared-streak friends
+- **Quest Feedback** — Users can like or dislike quests; feedback is stored per user in Firestore
+- **Quest Suggestions & App Feedback** — Profile actions submit suggestions and feedback to Firestore
+- **Local Fallbacks** — Demo/local state keeps core flows usable when Firebase data is unavailable
+
 ## Tech Stack
 
 - **Language:** Kotlin 1.9.0
 - **UI Framework:** Jetpack Compose with Material3
 - **Architecture:** MVVM (Model-View-ViewModel)
 - **Navigation:** Jetpack Compose Navigation
-- **Backend:** Firebase Authentication
+- **Backend:** Firebase Authentication and Cloud Firestore
+- **Local Storage:** SharedPreferences for interests, streaks, cached quest state, and theme preference
+- **Notifications:** Android local notifications
+- **Testing:** JUnit JVM unit tests
 - **Build:** Gradle 8.13.2
 - **Min SDK:** 24 (Android 7.0)
 - **Target SDK:** 34 (Android 14)
@@ -55,8 +66,15 @@ app/src/main/java/com/nhlstenden/momentum/
 ├── MainActivity.kt                    # Single activity; requests notification permission
 ├── data/
 │   ├── repository/
-│   │   └── AuthRepository.kt          # Firebase Auth (register, login, signOut, currentUser)
+│   │   ├── AuthRepository.kt          # Firebase Auth, profile sync, account deletion
+│   │   ├── QuestRepository.kt         # Predefined quests + Firestore quest state
+│   │   ├── SharedStreakRepository.kt  # Firestore shared streaks and invites
+│   │   ├── QuestFeedbackRepository.kt # Firestore quest likes/dislikes
+│   │   └── UserRepository.kt          # Firestore user profile/preferences
 │   ├── InterestsStore.kt              # SharedPreferences — selected interest categories
+│   ├── QuestLocalCache.kt             # SharedPreferences — offline quest cache
+│   ├── SuggestionsStore.kt            # Firestore quest suggestions
+│   ├── FeedbackStore.kt               # Firestore app feedback
 │   └── StreakStore.kt                 # SharedPreferences — consecutive-day streak logic
 ├── navigation/
 │   ├── MomentumDestinations.kt        # Route constants + bottom tab definitions
@@ -90,7 +108,8 @@ app/src/main/java/com/nhlstenden/momentum/
 │   │   ├── progress/
 │   │   │   └── ProgressScreen.kt      # Streak stat + category balance bars
 │   │   ├── friends/
-│   │   │   └── FriendsScreen.kt       # Friend streaks and invites
+│   │   │   ├── FriendsScreen.kt       # Friend streaks and invites
+│   │   │   └── QuestBoardScreen.kt    # Friend-liked quest board
 │   │   └── profile/
 │   │       └── ProfileScreen.kt       # Real user name/email, interests, sign out
 │   └── theme/
@@ -100,7 +119,10 @@ app/src/main/java/com/nhlstenden/momentum/
 │       ├── Shape.kt                   # Corner radius definitions
 │       └── Spacing.kt                 # 8-point grid spacing
 └── viewmodel/
-    └── AuthViewModel.kt               # Auth state, validation, login/register logic
+    ├── AuthViewModel.kt               # Auth state, validation, login/register logic
+    ├── ProfileViewModel.kt            # Profile editing and account deletion state
+    ├── QuestViewModel.kt              # Quest list/progress/feedback state
+    └── SharedStreakViewModel.kt       # Shared streak invite and activity state
 ```
 
 ## Getting Started
@@ -136,6 +158,38 @@ app/src/main/java/com/nhlstenden/momentum/
    - Connect device or start emulator
    - Click Run (▶) in Android Studio
 
+5. **Run Unit Tests**
+   ```bash
+   ./gradlew testDebugUnitTest
+   ```
+
+### Firebase Rules
+
+Firestore security rules are stored in `firestore.rules`. They restrict private user data to the signed-in user, allow shared streak members to read/update their own shared streaks, and allow users to delete their own feedback/suggestions during account deletion.
+
+### Manual QA Checklist
+
+Before submitting or merging a feature branch, run:
+
+```bash
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
+./gradlew lintDebug
+```
+
+Then verify the main app flows on an emulator or device:
+
+- Register with email/password and complete onboarding interest selection
+- Sign out and sign back in with the same account
+- Load daily quests, start a quest, skip a quest, and complete a quest
+- Add a reflection and confirm it appears in Reflect/Progress where applicable
+- Edit profile display name and theme
+- Send feedback and suggest a quest
+- Send a test notification after granting notification permission
+- Create/accept/decline shared streak invites when Firebase test accounts are available
+- Delete account with a wrong password and confirm a friendly error appears
+- Delete account with the correct password and confirm Auth plus Firestore user-linked data are removed
+
 ## Architecture
 
 ### MVVM Pattern
@@ -151,6 +205,12 @@ app/src/main/java/com/nhlstenden/momentum/
 - Single Activity with Compose Navigation
 - Type-safe routes via `MomentumDestinations`
 - Bottom nav for main screens, full-screen auth flow
+
+### External Subsystems
+- **Firebase Auth** handles email/password registration, login, password reset, profile display name updates, sign-out, and account deletion.
+- **Cloud Firestore** stores user profiles, quest states, journal entries, shared streaks, quest feedback, app feedback, and quest suggestions.
+- **SharedPreferences** stores lightweight local-only preferences and fallback state such as selected interests and streak metadata.
+- **Android Notifications** provide local quest reminders through a registered notification channel.
 
 ## Brand Guidelines
 
