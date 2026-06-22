@@ -79,6 +79,7 @@ fun FriendsScreen(
         onRefresh = sharedStreakViewModel::refresh,
         onAccept = sharedStreakViewModel::accept,
         onDecline = sharedStreakViewModel::decline,
+        onCancelInvite = sharedStreakViewModel::cancelInvitation,
         // Find Friends tab (direct invite like old working tab)
         inviteEmail = inviteEmail,
         onInviteEmailChange = { 
@@ -114,6 +115,7 @@ private fun FriendsScreenWithTabs(
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
     onDecline: (String) -> Unit,
+    onCancelInvite: (String) -> Unit,
     // Find Friends tab (uses direct invite like old working tab)
     inviteEmail: String,
     onInviteEmailChange: (String) -> Unit,
@@ -211,7 +213,8 @@ private fun FriendsScreenWithTabs(
                     onGoToFindFriends = { onTabSelected(2) },
                     onRefresh = onRefresh,
                     onAccept = onAccept,
-                    onDecline = onDecline
+                    onDecline = onDecline,
+                    onCancelInvite = onCancelInvite
                 )
                 2 -> FindFriendsTab(
                     isSignedIn = isSignedIn,
@@ -305,7 +308,8 @@ private fun StreaksTab(
     onGoToFindFriends: () -> Unit,
     onRefresh: () -> Unit,
     onAccept: (String) -> Unit,
-    onDecline: (String) -> Unit
+    onDecline: (String) -> Unit,
+    onCancelInvite: (String) -> Unit
 ) {
     if (!isSignedIn) {
         MomentumStatusCard(
@@ -392,7 +396,8 @@ private fun StreaksTab(
         )
         outgoingInvitations.forEach { streak ->
             OutgoingInvitationRow(
-                name = currentUid?.let { streak.otherMemberName(it) } ?: "Friend"
+                name = currentUid?.let { streak.otherMemberName(it) } ?: "Friend",
+                onCancel = { onCancelInvite(streak.id) }
             )
         }
     }
@@ -558,22 +563,35 @@ private fun IncomingInvitationRow(
 }
 
 @Composable
-private fun OutgoingInvitationRow(name: String) {
+private fun OutgoingInvitationRow(
+    name: String,
+    onCancel: () -> Unit
+) {
     MomentumCard {
-        Row(
+        Column(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleLarge)
-                Text(
-                    "Waiting for them to accept",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(name, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Waiting for them to accept",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                MomentumChip("Pending", variant = ChipVariant.Neutral)
             }
-            MomentumChip("Pending", variant = ChipVariant.Neutral)
+            MomentumSecondaryButton(
+                text = "Cancel invitation",
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -727,6 +745,7 @@ private fun FriendsPreview() {
             onRefresh = {},
             onAccept = {},
             onDecline = {},
+            onCancelInvite = {},
             // Find Friends
             inviteEmail = "",
             onInviteEmailChange = {},

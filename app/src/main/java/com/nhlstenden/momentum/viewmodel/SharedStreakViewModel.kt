@@ -243,6 +243,27 @@ class SharedStreakViewModel(
 
     fun decline(streakId: String) = respond(streakId, accepted = false)
 
+    fun cancelInvitation(streakId: String) {
+        val uid = auth.currentUser?.uid
+        val invitation = outgoingInvitations.firstOrNull { it.id == streakId }
+        if (uid == null || invitation?.invitedByUid != uid) {
+            loadError = "We couldn't cancel that invitation. Please refresh and try again."
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                withTimeout(FIRESTORE_TIMEOUT_MS) {
+                    sharedStreakRepository.cancelInvitation(streakId)
+                }
+            }.onSuccess {
+                refresh()
+            }.onFailure {
+                loadError = "We couldn't cancel that invitation. Please try again."
+            }
+        }
+    }
+
     fun clearInviteFeedback() {
         inviteError = null
         inviteSuccess = null

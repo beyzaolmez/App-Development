@@ -34,6 +34,9 @@ interface SharedStreakRepository {
     /** Marks a pending invitation as accepted (Active) or declined. */
     suspend fun respondToInvitation(streakId: String, accepted: Boolean)
 
+    /** Cancels a pending invitation sent by the current user. */
+    suspend fun cancelInvitation(streakId: String)
+
     /** Persists a streak that the logic layer has already updated. */
     suspend fun updateStreak(streak: SharedStreak)
 
@@ -98,6 +101,13 @@ class InMemorySharedStreakRepository : SharedStreakRepository {
             )
         } else {
             existing.copy(status = SharedStreakStatus.Declined)
+        }
+    }
+
+    override suspend fun cancelInvitation(streakId: String) {
+        val existing = streaks[streakId] ?: return
+        if (existing.status == SharedStreakStatus.Pending) {
+            streaks.remove(streakId)
         }
     }
 
@@ -189,6 +199,10 @@ class FirestoreSharedStreakRepository(
             mapOf("status" to status.name)
         }
         collection.document(streakId).update(updates).await()
+    }
+
+    override suspend fun cancelInvitation(streakId: String) {
+        collection.document(streakId).delete().await()
     }
 
     override suspend fun updateStreak(streak: SharedStreak) {
