@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Daily Life Side Quests Wireframe</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+      :root {
+        --primary: #6366f1;
+        --primary-soft: #a5b4fc;
+        --primary-glow: rgba(99, 102, 241, 0.24);
+        --secondary: #06b6d4;
+        --tertiary: #f59e0b;
+        --ink: #e8ecff;
+        --body: #c7cce0;
+        --muted: #8d95ad;
+        --line: rgba(199, 210, 254, 0.14);
+        --surface: #151e33;
+        --surface-2: #1b263e;
+        --soft: #0f172a;
+        --panel: #111a2e;
+        --panel-2: #0b1222;
+        --field: #101a2f;
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(99, 102, 241, 0.18), transparent 28rem),
+          radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.08), transparent 26rem),
+          linear-gradient(135deg, #080d19, #0f172a 56%, #111827);
+        font-family: "Lexend", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .page {
+        width: min(1180px, 100%);
+        margin: 0 auto;
+        padding: 28px 18px 40px;
+      }
+
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      strong,
+      .brand,
+      .appbar,
+      .primary,
+      .secondary,
+      .quiet,
+      .screen-button,
+      .tab-btn,
+      .chip,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+        font-size: clamp(25px, 4vw, 42px);
+        line-height: 1.05;
+      }
+
+      h2,
+      h3,
+      strong,
+      .brand,
+      .appbar {
+        font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      .intro {
+        max-width: 700px;
+        margin-top: 10px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(320px, 420px) minmax(260px, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(17, 26, 46, 0.82);
+        box-shadow: 0 16px 42px rgba(0, 0, 0, 0.18);
+      }
+
+      .nav-panel,
+      .notes {
+        padding: 16px;
+      }
+
+      .eyebrow {
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .screen-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .screen-button {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: var(--body);
+        background: transparent;
+        text-align: left;
+      }
+
+      .screen-button:hover,
+      .screen-button.active {
+        border-color: rgba(165, 180, 252, 0.32);
+        color: var(--ink);
+        background: rgba(99, 102, 241, 0.16);
+      }
+
+      .phone-shell {
+        border: 1px solid rgba(165, 180, 252, 0.2);
+        border-radius: 34px;
+        padding: 12px;
+        background: #030712;
+        box-shadow: var(--shadow);
+      }
+
+      .phone {
+        position: relative;
+        overflow: hidden;
+        min-height: 760px;
+        border-radius: 24px;
+        background:
+          radial-gradient(circle at 80% 0%, rgba(99, 102, 241, 0.16), transparent 13rem),
+          linear-gradient(180deg, #111a2e, var(--soft));
+      }
+
+      .status {
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 18px;
+        color: var(--muted);
+        background: rgba(9, 14, 27, 0.82);
+        font-size: 12px;
+      }
+
+      .app {
+        min-height: 732px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .content {
+        flex: 1;
+        overflow: auto;
+        padding: 18px 18px 92px;
+      }
+
+      .appbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        color: var(--ink);
+        background: rgba(21, 30, 51, 0.92);
+        display: inline-grid;
+        place-items: center;
+        line-height: 1;
+      }
+
+      .back-btn {
+        width: 42px;
+        height: 42px;
+        color: var(--primary-soft);
+        border-color: rgba(165, 180, 252, 0.22);
+        background: rgba(99, 102, 241, 0.12);
+      }
+
+      .nav-icon {
+        font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+        font-size: 19px;
+        font-weight: 700;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+      }
+
+      .mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary), rgba(6, 182, 212, 0.82));
+        box-shadow: 0 0 28px rgba(99, 102, 241, 0.22);
+      }
+
+      .hero {
+        padding: 20px;
+        border-radius: 22px;
+        background:
+          linear-gradient(145deg, rgba(99, 102, 241, 0.16), rgba(6, 182, 212, 0.08)),
+          var(--surface);
+        border: 1px solid rgba(165, 180, 252, 0.18);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+      }
+
+      .hero h2 {
+        margin-top: 6px;
+        font-size: 28px;
+        line-height: 1.1;
+      }
+
+      .hero p,
+      .soft-copy {
+        color: var(--body);
+        line-height: 1.5;
+      }
+
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 16px;
+        background: var(--surface);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+      }
+
+      .quest-card {
+        cursor: pointer;
+      }
+
+      .quest-card:hover {
+        border-color: rgba(165, 180, 252, 0.32);
+        background: var(--surface-2);
+      }
+
+      .quest-card {
+        display: grid;
+        gap: 10px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 5px 10px;
+        color: #dbe2ff;
+        background: rgba(99, 102, 241, 0.2);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .chip.cyan {
+        color: #b6f4ff;
+        background: rgba(6, 182, 212, 0.16);
+      }
+
+      .chip.amber {
+        color: #ffdf9a;
+        background: rgba(245, 158, 11, 0.16);
+      }
+
+      .progress {
+        overflow: hidden;
+        height: 8px;
+        border-radius: 99px;
+        background: rgba(141, 149, 173, 0.22);
+      }
+
+      .progress span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--primary-soft), var(--secondary));
+      }
+
+      .primary,
+      .secondary,
+      .quiet {
+        min-height: 44px;
+        border-radius: 15px;
+        padding: 0 14px;
+        font-weight: 800;
+      }
+
+      .primary {
+        border: 1px solid rgba(165, 180, 252, 0.28);
+        color: #ffffff;
+        background: var(--primary);
+        box-shadow: 0 14px 30px var(--primary-glow);
+      }
+
+      .secondary {
+        border: 1px solid var(--line);
+        color: var(--ink);
+        background: rgba(21, 30, 51, 0.92);
+      }
+
+      .quiet {
+        border: 0;
+        color: var(--muted);
+        background: transparent;
+      }
+
+      .button-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .field,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        padding: 12px;
+        color: var(--ink);
+        background: var(--field);
+      }
+
+      .field::placeholder,
+      textarea::placeholder {
+        color: var(--muted);
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      .micro-area {
+        min-height: 84px;
+      }
+
+      .choice-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .choice {
+        min-height: 74px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 12px;
+        color: var(--ink);
+        background: var(--surface);
+        text-align: left;
+      }
+
+      .choice.active {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.18);
+      }
+
+      .prompt-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .prompt-btn {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 0 12px;
+        color: var(--body);
+        background: rgba(15, 23, 42, 0.54);
+        text-align: left;
+      }
+
+      .prompt-btn.active {
+        color: var(--ink);
+        border-color: rgba(245, 158, 11, 0.36);
+        background: rgba(245, 158, 11, 0.13);
+      }
+
+      .feedback-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .feedback-btn {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 0 10px;
+        color: var(--body);
+        background: rgba(15, 23, 42, 0.56);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .feedback-btn.active {
+        color: var(--ink);
+        border-color: rgba(165, 180, 252, 0.34);
+        background: rgba(99, 102, 241, 0.16);
+      }
+
+      .quest-context {
+        display: grid;
+        gap: 8px;
+        border-color: rgba(6, 182, 212, 0.2);
+        background: rgba(6, 182, 212, 0.07);
+      }
+
+      .optional-note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .bottom-nav {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        padding: 8px;
+        border: 1px solid rgba(165, 180, 252, 0.16);
+        border-radius: 22px;
+        background: rgba(17, 26, 46, 0.94);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26);
+        backdrop-filter: blur(18px);
+      }
+
+      .tab-btn {
+        height: 48px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 2px;
+        border: 0;
+        border-radius: 16px;
+        color: var(--muted);
+        background: transparent;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .tab-btn.active {
+        color: #dbe2ff;
+        background: rgba(99, 102, 241, 0.22);
+      }
+
+      .tab-icon {
+        font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      .meter-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .stat {
+        min-height: 96px;
+        display: grid;
+        align-content: center;
+        gap: 4px;
+      }
+
+      .stat strong {
+        font-size: 28px;
+      }
+
+      .friend {
+        display: grid;
+        grid-template-columns: 42px 1fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), rgba(6, 182, 212, 0.88));
+      }
+
+      .toggle {
+        width: 48px;
+        height: 28px;
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.24);
+        border: 1px solid rgba(165, 180, 252, 0.28);
+      }
+
+      .toggle::after {
+        content: "";
+        display: block;
+        width: 22px;
+        height: 22px;
+        margin: 2px 3px 0 auto;
+        border-radius: 50%;
+        background: var(--primary-soft);
+      }
+
+      .notes h2 {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      .notes ul {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .map {
+        display: grid;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .map-item {
+        padding: 10px;
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.72);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        .top,
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .nav-panel {
+          order: 2;
+        }
+
+        .phone-shell {
+          width: min(420px, 100%);
+          margin: 0 auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="top">
+        <div>
+          <p class="eyebrow">Low-fidelity clickable prototype</p>
+          <h1>Daily life side quests</h1>
+          <p class="intro">A UI-only POC prototype for students to try daily and long-term quests, build routines, reflect briefly, and keep shared streaks with friends.</p>
+        </div>
+        <button class="primary" data-go="auth">Restart flow</button>
+      </header>
+
+      <section class="layout">
+        <aside class="panel nav-panel">
+          <p class="eyebrow">Screens</p>
+          <div class="screen-list" id="screenList"></div>
+        </aside>
+
+        <section class="phone-shell" aria-label="Mobile app prototype">
+          <div class="phone">
+            <div class="status"><span>9:41</span><span>POC</span></div>
+            <div class="app">
+              <div class="content" id="appContent"></div>
+              <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation"></nav>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel notes">
+          <h2 id="noteTitle">Flow notes</h2>
+          <p class="soft-copy" id="noteCopy"></p>
+          <div class="map">
+            <div class="map-item">Auth -> onboarding -> home</div>
+            <div class="map-item">Home -> quest detail -> progress or complete</div>
+            <div class="map-item">Completed quest -> quest reflection</div>
+            <div class="map-item">Profile -> friends, feedback, and suggestions</div>
+          </div>
+          <ul>
+            <li>Quest progress can span days through long-term quest states.</li>
+            <li>Shared streaks now cover invites, connections, and liked quests.</li>
+            <li>Profile stores theme choice and links to feedback/suggestions.</li>
+          </ul>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const screens = {
+        auth: {
+          label: "Welcome / Auth",
+          note: "Entry point for a calm daily side-quest companion.",
+          html: `
+            <div class="appbar">
+              <div class="brand"><span class="mark"></span><span>Side Quest</span></div>
+              <span></span>
+            </div>
+            <section class="hero stack">
+              <p class="eyebrow">Daily life quests</p>
+              <h2>Your day has side quests.</h2>
+              <p>Try something small between study, work, friends, and time for yourself.</p>
+            </section>
+            <div class="stack" style="margin-top:16px">
+              <button class="primary" data-go="signin">Sign in</button>
+              <button class="secondary" data-go="signup">Create account</button>
+            </div>
+          `
+        },
+        signin: {
+          label: "Sign In",
+          note: "Authentication wireframe only; fields are placeholders with no backend logic.",
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="auth" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Sign in</strong><span></span></div>
+            <div class="stack">
+              <section class="card stack">
+                <h2>Welcome back</h2>
+                <p class="soft-copy">Pick up where you left off and keep today simple.</p>
+                <input class="field" placeholder="Student email" />
+                <input class="field" placeholder="Password" type="password" />
+                <button class="primary" data-go="home">Sign in</button>
+                <button class="quiet" data-go="forgot">Forgot password</button>
+              </section>
+            </div>
+          `
+        },
+        signup: {
+          label: "Create Account",
+          note: "Account creation leads into onboarding so the app can personalize quest categories.",
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="auth" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Create account</strong><span></span></div>
+            <div class="stack">
+              <section class="card stack">
+                <input class="field" placeholder="Name" />
+                <input class="field" placeholder="Email" />
+                <input class="field" placeholder="Password" type="password" />
+                <button class="primary" data-go="onboardingTone">Continue</button>
+                <button class="quiet" data-go="signin">I already have an account</button>
+              </section>
+            </div>
+          `
+        },
+        forgot: {
+          label: "Forgot Password",
+          note: "Recovery stays plain and reassuring.",
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="signin" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Reset password</strong><span></span></div>
+            <div class="card stack">
+              <h2>Reset your password</h2>
+              <p class="soft-copy">Enter your email and we will send a reset link.</p>
+              <input class="field" placeholder="Email address" />
+              <button class="primary" data-go="signin">Send link</button>
+            </div>
+          `
+        },
+        onboardingTone: {
+          label: "Onboarding: Tone",
+          note: "Sets the product tone: adventurous, calm, and easy to skip.",
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="auth" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>1 of 3</strong><span></span></div>
+            <section class="hero stack">
+              <p class="eyebrow">Before we begin</p>
+              <h2>Pick quests that fit your day.</h2>
+              <p>Try something new, take a real break, move a little, or connect with someone. Skip or swap anytime.</p>
+            </section>
+            <div class="button-row" style="margin-top:16px">
+              <button class="secondary" data-go="auth">Later</button>
+              <button class="primary" data-go="onboardingInterests">Continue</button>
+            </div>
+          `
+        },
+        onboardingInterests: {
+          label: "Onboarding: Interests",
+          note: "Personalization starts with activity and lifestyle categories instead of a long survey.",
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="onboardingTone" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>2 of 3</strong><span></span></div>
+            <div class="stack">
+              <h2>What kind of quest fits today?</h2>
+              <p class="soft-copy">Pick activity and lifestyle categories. You can change these later.</p>
+              <div class="choice-grid">
+                <button class="choice active">Movement<br><span class="soft-copy">Walks and gym</span></button>
+                <button class="choice active">Exploration<br><span class="soft-copy">Places and routes</span></button>
+                <button class="choice">Social<br><span class="soft-copy">Friends and messages</span></button>
+                <button class="choice">Study Focus<br><span class="soft-copy">New study rhythms</span></button>
+                <button class="choice">Creativity<br><span class="soft-copy">Make something small</span></button>
+                <button class="choice active">Breaks<br><span class="soft-copy">Real pauses</span></button>
+                <button class="choice">Food<br><span class="soft-copy">Cook or try a place</span></button>
+                <button class="choice">Outdoors<br><span class="soft-copy">Fresh air quests</span></button>
+                <button class="choice">Personal Growth<br><span class="soft-copy">Tiny challenges</span></button>
+              </div>
+              <button class="primary" data-go="onboardingRhythm">Continue</button>
+            </div>
+          `
+        },
+        onboardingRhythm: {
+          label: "Onboarding: Rhythm",
+          note: "Sets quest rhythm and reminder expectations without pressure.",
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="onboardingInterests" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>3 of 3</strong><span></span></div>
+            <div class="stack">
+              <h2>Choose your quest rhythm</h2>
+              <div class="card stack">
+                <div class="row"><strong>Daily quests</strong><span class="chip">2 per day</span></div>
+                <div class="progress"><span style="width:66%"></span></div>
+              </div>
+              <div class="card row">
+                <div><strong>Quest reminder</strong><p class="soft-copy">Around 18:00</p></div>
+                <span class="toggle"></span>
+              </div>
+              <button class="primary" data-go="home">Start questing</button>
+            </div>
+          `
+        },
+        home: {
+          label: "Home Quests",
+          note: "Primary quest surface. It mixes daily quests with long-term quest progress from questStates.",
+          main: true,
+          html: `
+            <div class="appbar">
+              <div><p class="eyebrow">Thursday</p><h2>Hi Miriam</h2></div>
+              <button class="icon-btn" data-go="settings" aria-label="Settings"><span class="nav-icon">&#9881;</span></button>
+            </div>
+            <section class="hero stack">
+              <div class="row"><span class="chip cyan">Daily + long-term</span><span class="soft-copy">3 quests today</span></div>
+              <h2>Today's side quests</h2>
+              <p>Pick a small action for today or keep nudging a longer goal forward.</p>
+            </section>
+            <div class="stack" style="margin-top:14px">
+              <article class="card quest-card" data-go="questDetail">
+                <div class="row"><span class="chip cyan">Explore nearby</span><span class="soft-copy">30 min</span></div>
+                <h3>Visit a cafe you have not tried</h3>
+                <p class="soft-copy">Change your study scenery or grab a small drink somewhere new.</p>
+              </article>
+              <article class="card quest-card" data-go="questDetail">
+                <div class="row"><span class="chip amber">Long-term</span><span class="soft-copy">3/5 sessions</span></div>
+                <h3>Complete 5 focused study sessions</h3>
+                <p class="soft-copy">Log one focused session today to keep this quest moving.</p>
+                <div class="progress"><span style="width:60%; background:var(--tertiary)"></span></div>
+              </article>
+              <article class="card quest-card" data-go="journal">
+                <div class="row"><span class="chip amber">Break quest</span><span class="soft-copy">10 min</span></div>
+                <h3>Take a real break between study sessions</h3>
+                <p class="soft-copy">Step away from your screen and do something that is not another tab.</p>
+              </article>
+              <article class="card quest-card" data-go="questDetail">
+                <div class="row"><span class="chip">Social</span><span class="soft-copy">5 min</span></div>
+                <h3>Message someone you have not spoken to recently</h3>
+                <p class="soft-copy">Send a simple hello, meme, or coffee invite. Keep it easy.</p>
+              </article>
+              <section class="card stack">
+                <div class="row"><strong>Quest streak</strong><span>4 days</span></div>
+                <div class="progress"><span style="width:57%"></span></div>
+                <button class="quiet" data-go="progress">View progress</button>
+              </section>
+            </div>
+          `
+        },
+        questDetail: {
+          label: "Quest Detail",
+          note: "Quest detail supports daily completion and long-term progress logging.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="home" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Quest</strong><button class="icon-btn" data-go="home" aria-label="Swap quest"><span class="nav-icon">&#8635;</span></button></div>
+            <div class="stack">
+              <section class="hero stack">
+                <div class="row"><span class="chip amber">Long-term</span><span class="soft-copy">session goal</span></div>
+                <h2>Complete 5 focused study sessions.</h2>
+                <p>Longer quests grow through small progress updates instead of one completion event.</p>
+              </section>
+              <section class="card stack">
+                <div class="row"><strong>Long-term progress</strong><span>3/5 sessions</span></div>
+                <div class="progress"><span style="width:60%; background:var(--tertiary)"></span></div>
+                <p class="soft-copy">Progress can be logged once per day and is stored on the user's quest state.</p>
+              </section>
+              <section class="card stack">
+                <strong>Steps</strong>
+                <p class="soft-copy">Choose a task, set a timer, remove one distraction, and finish one focused session.</p>
+              </section>
+              <section class="card stack">
+                <div class="row"><strong>Quest feedback</strong><span class="soft-copy">Optional</span></div>
+                <p class="soft-copy">Helps tune future quest categories.</p>
+                <div class="feedback-grid">
+                  <button class="feedback-btn active">Like quest</button>
+                  <button class="feedback-btn">Dislike quest</button>
+                  <button class="feedback-btn">More like this</button>
+                  <button class="feedback-btn">Not for me</button>
+                </div>
+              </section>
+              <button class="primary" data-go="complete">Log 1 session</button>
+              <button class="secondary" data-go="home">Progress logged today</button>
+              <button class="quiet" data-go="home">Not today</button>
+            </div>
+          `
+        },
+        complete: {
+          label: "Completion",
+          note: "Completion feedback is light and does not create pressure to keep going.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="home" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Done</strong><span></span></div>
+            <section class="hero stack">
+              <p class="eyebrow">Quest complete</p>
+              <h2>Quest logged.</h2>
+              <p>Nice. You did something small on purpose. Add a quick note or call it done.</p>
+            </section>
+            <div class="stack" style="margin-top:14px">
+              <button class="primary" data-go="journal">Add quest reflection</button>
+              <button class="secondary" data-go="home">Return home</button>
+            </div>
+          `
+        },
+        journal: {
+          label: "Quest Reflection",
+          note: "A short optional reflection is tied to a completed side quest.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="home" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Quest Reflection</strong><button class="icon-btn" data-go="home" aria-label="Close"><span class="nav-icon">&times;</span></button></div>
+            <div class="stack">
+              <section class="card quest-context">
+                <div class="row"><span class="chip cyan">Related quest</span><span class="soft-copy">Just now</span></div>
+                <h3>Visit a cafe you have not tried</h3>
+                <p class="soft-copy">A small explore-nearby quest between responsibilities.</p>
+              </section>
+              <section class="card stack">
+                <div>
+                  <span class="chip amber">Optional reflection</span>
+                  <h2 style="margin-top:10px">Anything you noticed?</h2>
+                </div>
+                <div class="prompt-row">
+                  <button class="prompt-btn active">Found a nice spot</button>
+                  <button class="prompt-btn">Good change of scenery</button>
+                  <button class="prompt-btn">Would try something else next time</button>
+                </div>
+                <textarea class="micro-area" maxlength="180" placeholder="Optional: one short reflection..."></textarea>
+                <p class="optional-note">Skip this if you are ready to move on.</p>
+              </section>
+              <section class="card stack">
+                <strong>Quick take</strong>
+                <div class="choice-grid">
+                  <button class="choice">Worth it</button>
+                  <button class="choice active">Okay</button>
+                  <button class="choice">More like this</button>
+                  <button class="choice">Not for me</button>
+                </div>
+              </section>
+              <button class="primary" data-go="home">Save reflection</button>
+              <button class="quiet" data-go="home">Skip</button>
+            </div>
+          `
+        },
+        progress: {
+          label: "Progress Overview",
+          note: "Progress combines streaks, completed quests, and long-term quest progress.",
+          main: true,
+          html: `
+            <div class="appbar"><div><p class="eyebrow">Progress</p><h2>All time</h2></div><button class="icon-btn" data-go="settings" aria-label="Settings"><span class="nav-icon">&#9881;</span></button></div>
+            <div class="meter-grid">
+              <section class="card stat"><strong>4</strong><span class="soft-copy">quest streak</span></section>
+              <section class="card stat"><strong>9</strong><span class="soft-copy">quests tried</span></section>
+            </div>
+            <div class="stack" style="margin-top:12px">
+              <section class="card stack">
+                <div class="row"><strong>Long-term quests</strong><span class="soft-copy">Active</span></div>
+                <p class="soft-copy">Focused study sessions</p><div class="progress"><span style="width:60%; background:var(--tertiary)"></span></div>
+                <p class="soft-copy">Movement habit</p><div class="progress"><span style="width:40%; background:var(--secondary)"></span></div>
+              </section>
+              <section class="card stack">
+                <div class="row"><strong>Category balance</strong><span class="soft-copy">All quests</span></div>
+                <p class="soft-copy">Explore</p><div class="progress"><span style="width:72%"></span></div>
+                <p class="soft-copy">Breaks</p><div class="progress"><span style="width:48%; background:var(--tertiary)"></span></div>
+                <p class="soft-copy">Social</p><div class="progress"><span style="width:32%; background:var(--secondary)"></span></div>
+              </section>
+            </div>
+          `
+        },
+        friends: {
+          label: "Friends / Shared Streaks",
+          note: "Friends are implemented through SharedStreak: pending invites, active streaks, declined invites, and liked quest boards.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="settings" aria-label="Back"><span class="nav-icon">&larr;</span></button><div><p class="eyebrow">SharedStreak</p><h2>Friends</h2></div><button class="icon-btn" aria-label="Add friend"><span class="nav-icon">+</span></button></div>
+            <div class="stack">
+              <div class="button-row">
+                <button class="secondary">My Friends</button>
+                <button class="secondary">Streaks</button>
+                <button class="secondary">Find</button>
+              </div>
+              <section class="card stack">
+                <div class="row"><strong>Noor invited you</strong><span class="chip cyan">Pending</span></div>
+                <p class="soft-copy">Accept to create an active shared streak connection.</p>
+                <div class="button-row">
+                  <button class="secondary">Decline</button>
+                  <button class="primary">Accept</button>
+                </div>
+              </section>
+              <section class="card stack">
+                <div class="row"><strong>Shared with Noor</strong><span class="chip cyan">Active · 3 days</span></div>
+                <p class="soft-copy">Both members completed a quest today, so the shared streak can advance.</p>
+                <button class="secondary" data-go="questBoard">Open liked quest board</button>
+              </section>
+              <section class="card friend">
+                <span class="avatar"></span>
+                <div><strong>Noor</strong><p class="soft-copy">Wants to try a cafe quest together</p></div>
+                <span class="chip">3</span>
+              </section>
+              <section class="card friend">
+                <span class="avatar"></span>
+                <div><strong>Sam</strong><p class="soft-copy">Shared streak invite sent</p></div>
+                <span class="chip amber">new</span>
+              </section>
+              <section class="card stack">
+                <strong>Find friend</strong>
+                <input class="field" placeholder="Friend email" />
+                <button class="secondary">Send shared streak invite</button>
+              </section>
+              <button class="quiet" data-go="settings">Back to profile</button>
+            </div>
+          `
+        },
+        questBoard: {
+          label: "Friend Quest Board",
+          note: "The friend board is represented by likedQuestIdsByMember inside each active SharedStreak.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="friends" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Liked quests</strong><span></span></div>
+            <div class="stack">
+              <section class="hero stack">
+                <p class="eyebrow">Shared with Noor</p>
+                <h2>Quest ideas you both liked.</h2>
+                <p>Likes are stored on the shared streak, so friends can discover quests without a separate board collection.</p>
+              </section>
+              <article class="card quest-card" data-go="questDetail">
+                <div class="row"><span class="chip cyan">Liked by Noor</span><span class="soft-copy">30 min</span></div>
+                <h3>Try a quiet study cafe</h3>
+                <p class="soft-copy">A shared idea for a focused session outside the usual spot.</p>
+              </article>
+              <article class="card quest-card" data-go="questDetail">
+                <div class="row"><span class="chip amber">Liked by you</span><span class="soft-copy">10 min</span></div>
+                <h3>Walk after class</h3>
+                <p class="soft-copy">Small movement quest that can support your shared streak.</p>
+              </article>
+            </div>
+          `
+        },
+        settings: {
+          label: "Profile / Settings",
+          note: "Profile stores theme preference and links to friends, feedback, and quest suggestions.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="home" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Profile</strong><span></span></div>
+            <div class="stack">
+              <section class="card friend">
+                <span class="avatar"></span>
+                <div><strong>Miriam</strong><p class="soft-copy">University student</p></div>
+                <button class="secondary">Edit</button>
+              </section>
+              <section class="card stack">
+                <div class="row"><div><strong>Quest notifications</strong><p class="soft-copy">Daily side quest reminders</p></div><span class="toggle"></span></div>
+              </section>
+              <section class="card stack">
+                <div class="row"><div><strong>Theme</strong><p class="soft-copy">Saved to your user profile</p></div><span class="chip cyan">Aurora</span></div>
+                <div><span class="chip">Calm</span> <span class="chip cyan">Aurora</span> <span class="chip amber">Warm</span></div>
+              </section>
+              <section class="card stack">
+                <div><strong>Friends</strong><p class="soft-copy">Connect with friends for shared quests and streaks.</p></div>
+                <button class="secondary" data-go="friends">Invite friends</button>
+              </section>
+              <section class="card stack">
+                <strong>Contribute</strong>
+                <button class="secondary" data-go="feedback">Send feedback</button>
+                <button class="secondary" data-go="suggestQuest">Suggest a quest</button>
+              </section>
+              <section class="card stack">
+                <strong>Interests</strong>
+                <div><span class="chip">Explore nearby</span> <span class="chip cyan">Social quest</span> <span class="chip amber">Creative quest</span></div>
+              </section>
+              <button class="quiet" data-go="auth">Sign out</button>
+            </div>
+          `
+        },
+        feedback: {
+          label: "Send Feedback",
+          note: "Feedback writes message, formatted timestamp, and uid to the feedback collection.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="settings" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Send feedback</strong><span></span></div>
+            <div class="stack">
+              <section class="card stack">
+                <p class="eyebrow">Profile feedback</p>
+                <h2>Tell us what felt unclear.</h2>
+                <p class="soft-copy">Short messages help improve the app without interrupting the quest flow.</p>
+                <textarea class="micro-area" maxlength="500" placeholder="Write a short message..."></textarea>
+                <button class="primary" data-go="settings">Submit feedback</button>
+              </section>
+            </div>
+          `
+        },
+        suggestQuest: {
+          label: "Suggest Quest",
+          note: "Quest suggestions write title, category, notes, formatted timestamp, and uid.",
+          main: true,
+          html: `
+            <div class="appbar"><button class="icon-btn back-btn" data-go="settings" aria-label="Back"><span class="nav-icon">&larr;</span></button><strong>Suggest a quest</strong><span></span></div>
+            <div class="stack">
+              <section class="card stack">
+                <p class="eyebrow">Quest suggestion</p>
+                <h2>Add a quest idea.</h2>
+                <input class="field" placeholder="Quest title *" />
+                <input class="field" placeholder="Category" />
+                <textarea class="micro-area" maxlength="500" placeholder="Notes or steps..."></textarea>
+                <button class="primary" data-go="settings">Submit suggestion</button>
+              </section>
+            </div>
+          `
+        }
+      };
+
+      const mainTabs = [
+        ["home", "⌂", "Home"],
+        ["journal", "·", "Reflect"],
+        ["progress", "∿", "Progress"],
+        ["settings", "⚙", "Profile"]
+      ];
+
+      const screenOrder = [
+        "auth",
+        "signin",
+        "signup",
+        "forgot",
+        "onboardingTone",
+        "onboardingInterests",
+        "onboardingRhythm",
+        "home",
+        "questDetail",
+        "journal",
+        "progress",
+        "friends",
+        "questBoard",
+        "settings",
+        "feedback",
+        "suggestQuest"
+      ];
+
+      let current = "auth";
+      const content = document.querySelector("#appContent");
+      const screenList = document.querySelector("#screenList");
+      const bottomNav = document.querySelector("#bottomNav");
+      const noteTitle = document.querySelector("#noteTitle");
+      const noteCopy = document.querySelector("#noteCopy");
+
+      function go(screen) {
+        current = screen;
+        render();
+      }
+
+      function renderScreenList() {
+        screenList.innerHTML = screenOrder
+          .map((key) => `<button class="screen-button ${key === current ? "active" : ""}" data-go="${key}">${screens[key].label}</button>`)
+          .join("");
+      }
+
+      function renderBottomNav() {
+        const show = screens[current].main;
+        bottomNav.style.display = show ? "grid" : "none";
+        if (!show) return;
+        bottomNav.innerHTML = mainTabs
+          .map(([key, icon, label]) => `<button class="tab-btn ${key === current ? "active" : ""}" data-go="${key}" aria-label="${label}"><span class="tab-icon">${icon}</span><span>${label}</span></button>`)
+          .join("");
+      }
+
+      function render() {
+        const screen = screens[current];
+        content.innerHTML = screen.html;
+        noteTitle.textContent = screen.label;
+        noteCopy.textContent = screen.note;
+        renderScreenList();
+        renderBottomNav();
+      }
+
+      document.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-go]");
+        if (!target) return;
+        const next = target.getAttribute("data-go");
+        if (screens[next]) go(next);
+      });
+
+      render();
+    </script>
+  </body>
+</html>

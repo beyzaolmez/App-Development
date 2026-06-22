@@ -1,0 +1,10 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Activity-level theme: no ActionBar, transparent status bar, dark background.
+         All real theming happens in Compose via MomentumTheme. -->
+    <style name="Theme.Momentum" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/momentum_background</item>
+        <item name="android:statusBarColor">@color/momentum_background</item>
+        <item name="android:navigationBarColor">@color/momentum_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+</resources>
